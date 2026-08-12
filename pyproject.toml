@@ -1,0 +1,27 @@
+[project]
+name = "foundry-prompt-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Shiva Chittamuru", email = "shiva.vy147@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "azure-ai-evaluation>=1.18.3",
+    "azure-ai-projects>=2.4.0",
+    "azure-identity>=1.25.3",
+    "python-dotenv>=1.2.2",
+]
+
+[project.scripts]
+foundry-prompt-agent = "foundry_prompt_agent:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
+
+[[tool.uv.index]]
+name = "microsoft-cfs"
+url = "https://packagefeedproxy.microsoft.io/pypi/simple"
+default = true
