@@ -13,13 +13,13 @@ from openai.types.evals.create_eval_jsonl_run_data_source_param import (
 from src.foundry_prompt_agent.agent import ask_agent, project_client
 
 
-DATASET_PATH = Path("evals/contoso_agent_eval_v1.jsonl")
-RESULTS_PATH = Path("evals/results_v1.jsonl")
+DATASET_PATH = Path("evals/contoso_agent_eval_v2.jsonl")
+RESULTS_PATH = Path("evals/results_v2.jsonl")
 
 JUDGE_MODEL = os.environ["FOUNDRY_JUDGE_MODEL"]
 
 DATASET_NAME = "contoso-agent-results"
-DATASET_VERSION = "1"
+DATASET_VERSION = "2"
 
 
 def load_dataset(path: Path) -> list[dict]:
@@ -118,7 +118,7 @@ def run_cloud_evaluation() -> None:
     # 5. Run it against our uploaded JSONL dataset
     run = openai_client.evals.runs.create(
         eval_id=evaluation.id,
-        name="contoso-agent-baseline-v1",
+        name="contoso-agent-baseline-v2",
         data_source=CreateEvalJSONLRunDataSourceParam(
             type="jsonl",
             source=SourceFileID(

@@ -11,6 +11,8 @@ dependencies = [
     "azure-ai-evaluation>=1.18.3",
     "azure-ai-projects>=2.4.0",
     "azure-identity>=1.25.3",
+    "ipykernel>=7.3.0",
+    "jupyter>=1.1.1",
     "python-dotenv>=1.2.2",
 ]
 
