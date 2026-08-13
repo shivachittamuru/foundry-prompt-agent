@@ -1,0 +1,21 @@
+{
+  "name": "contoso-regression",
+  "evaluators": [
+    "contoso_behavior_rubric",
+    "contoso_scope_adherence"
+  ],
+  "data": [
+    {
+      "query": "How much is a Caramel Macchiato?"
+    },
+    {
+      "query": "Which drinks are sugar-free?"
+    },
+    {
+      "query": "How much is the Pumpkin Spice Latte?"
+    },
+    {
+      "query": "What's the weather like in Seattle today?"
+    }
+  ]
+}

@@ -12,3 +12,7 @@ wheels/
 # Virtual environments
 .venv
 .env
+
+# Github Workflows
+.github/workflows/*
+!.github/workflows/*.yml
