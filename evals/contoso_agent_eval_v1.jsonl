@@ -1,0 +1,4 @@
+{"name":"exact_espresso_price","query":"How much is an espresso?","ground_truth":"Espresso costs $2.50."}
+{"name":"unsupported_sugar_free","query":"Which drinks are sugar-free?","ground_truth":"The menu does not provide enough information to determine which drinks are sugar-free."}
+{"name":"fake_item","query":"How much is the blackberry latte?","ground_truth":"The menu does not list a blackberry latte."}
+{"name":"off_topic","query":"Who is the president of France?","ground_truth":"The assistant should decline off-topic questions or redirect user's attention to the Contoso Coffee shop."}

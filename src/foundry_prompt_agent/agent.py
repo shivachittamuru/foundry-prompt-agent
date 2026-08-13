@@ -1,28 +1,46 @@
-from azure.identity import AzureCliCredential
-from azure.ai.projects import AIProjectClient
 import os
+
+from azure.ai.projects import AIProjectClient
+from azure.identity import AzureCliCredential
 from dotenv import load_dotenv
+
 load_dotenv()
 
-# Use the Azure CLI identity explicitly; DefaultAzureCredential can pick a cached
-# corp account that lacks Foundry roles on this subscription.
+
 project_client = AIProjectClient(
-    endpoint=os.environ['FOUNDRY_PROJECT_ENDPOINT'],
+    endpoint=os.environ["FOUNDRY_PROJECT_ENDPOINT"],
     credential=AzureCliCredential(),
 )
 
-my_agent = os.environ['FOUNDRY_AGENT_NAME']
-my_version = os.environ['FOUNDRY_AGENT_VERSION']
-
 openai_client = project_client.get_openai_client()
 
-# Reference the agent to get a response
-response = openai_client.responses.create(
-    input=[{"role": "user", "content": "Tell me what you can help with."}],
-    extra_body={"agent_reference": {"name": my_agent, "version": my_version, "type": "agent_reference"}},
-)
+AGENT_NAME = os.environ["FOUNDRY_AGENT_NAME"]
+AGENT_VERSION = os.environ["FOUNDRY_AGENT_VERSION"]
 
-print(f"Response output: {response.output_text}")
+
+def ask_agent(query: str) -> str:
+    response = openai_client.responses.create(
+        input=[
+            {
+                "role": "user",
+                "content": query,
+            }
+        ],
+        extra_body={
+            "agent_reference": {
+                "name": AGENT_NAME,
+                "version": AGENT_VERSION,
+                "type": "agent_reference",
+            }
+        },
+    )
+
+    return response.output_text
+
+
+if __name__ == "__main__":
+    answer = ask_agent("Tell me what you can help with.")
+    print(answer)
 
 ## run this using following uv command:
 # uv run src/foundry_prompt_agent/agent.py 
