@@ -60,3 +60,22 @@ def summarize_effectiveness(efficiency: dict, success_rate: float) -> dict:
     }
 
 
+# Step 5: Token Economics
+def summarize_economics(
+    efficiency: dict,
+    effectiveness: dict,
+    value_per_success: float,
+) -> dict:
+    total_value = value_per_success * effectiveness["successful_tasks"]
+    total_cost = efficiency["total_cost"]
+    value_per_dollar = total_value / total_cost if total_cost > 0 else float("inf")
+
+    return {
+        "value_per_success": value_per_success,
+        "total_value": total_value,
+        "total_cost": total_cost,
+        "value_per_dollar": value_per_dollar,
+    }
+
+
+

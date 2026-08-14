@@ -43,7 +43,7 @@ The Prompt Agent runs in Microsoft Foundry. Everything on the ladder is owned by
 | 2. Token Cost | What did they cost? | `PRICING` + `compute_cost()` | dollars per 1M tokens |
 | 3. Token Efficiency | Tokens per task? | `summarize_efficiency()` | total tokens divided by task count |
 | 4. Token Effectiveness | Tokens per successful task? | `summarize_effectiveness()` | success rate from the quality gate |
-| 5. Token Economics | Value per dollar? | not yet implemented | business value per success |
+| 5. Token Economics | Value per dollar? | `summarize_economics()` | business value per success |
 | 6. Token Margin | Profitable, risk-adjusted value? | not yet implemented | review cost and error/risk cost |
 
 > [!IMPORTANT]
@@ -180,13 +180,55 @@ Success needs a definition. This project has two evaluators, and the harness use
 
 The lesson: compare `cost_per_success` against `cost_per_task`. The gap between them is the price of failure, the tax paid for tasks that did not work. Raising the success rate shrinks the gap, and at 100 percent the two converge.
 
+## Step 5: Token Economics
+
+The question: how much business value do we create per dollar of token spend?
+
+Every rung so far answered a cost question. Economics asks the first value question, and answering it requires one input the system cannot produce on its own: the value of a single successful task. A correctly answered coffee question might be worth some amount of deflected support cost, but only the business can assert that figure. The harness takes it as an assumption.
+
+Because the value of a success is a business assumption rather than a public fact, it belongs in configuration. Model prices are stable facts about a model and stay hardcoded, but value per success changes with deployment and context, so it is read from an environment variable with a sensible default:
+
+```python
+VALUE_PER_SUCCESS_USD = float(os.getenv("VALUE_PER_SUCCESS_USD", "0.10"))
+```
+
+With that input, economics is a short hop from Step 4 through another identity:
+
+```text
+value per dollar = (value per success * successes) / total cost
+                 = value per success / cost per success
+```
+
+Value per dollar is the assumed value of a success divided by the effectiveness cost already computed in Step 4.
+
+```python
+def summarize_economics(efficiency, effectiveness, value_per_success):
+    total_value = value_per_success * effectiveness["successful_tasks"]
+    total_cost = efficiency["total_cost"]
+    value_per_dollar = total_value / total_cost if total_cost > 0 else float("inf")
+    return {
+        "value_per_success": value_per_success,
+        "total_value": total_value,
+        "total_cost": total_cost,
+        "value_per_dollar": value_per_dollar,
+    }
+```
+
+When a success is worth cents and costs a tiny fraction of a cent in tokens, the ratio lands in the hundreds or thousands. That number is what reframes a conversation from "AI is expensive" to "each dollar of token spend returns this much value."
+
+Two honesty notes about this rung:
+
+* The cost side is agent token spend only. Judge and evaluation tokens are still deferred, so the real ratio is somewhat lower than printed. Including that spend is part of the margin rung.
+* The ratio is only as trustworthy as the `value_per_success` assumption. Treat it as a lever to reason about, not a precise accounting figure.
+
+The lesson: a single assumed number turns the cost ladder into a value ladder. The quality of that assumption, not the arithmetic, is what makes the ratio credible.
+
 ## What comes next
 
-Steps 1 through 4 are the cost side of the ladder: tokens, dollars, cost per task, cost per success. They are fully implemented.
+Steps 1 through 5 are implemented: tokens, dollars, cost per task, cost per success, and value per dollar. The cost side is complete, and the value side has its first rung.
 
-Steps 5 and 6 cross to the value side and are not yet built:
+Step 6 closes the ladder and is not yet built:
 
-* Token Economics introduces a value-per-success assumption and produces value per dollar of spend, the first number a business genuinely cares about.
-* Token Margin subtracts human review cost and error or risk cost to answer whether the value is profitable and risk-adjusted.
+* Token Margin subtracts human review cost and error or risk cost from the value created, and folds in the deferred judge and evaluation spend, to answer whether the value is profitable and risk-adjusted.
 
 The through-line of the whole ladder matches the core lesson of the project: trust comes from repeatable evidence, and value comes from measuring spend against outcomes rather than counting tokens in isolation.

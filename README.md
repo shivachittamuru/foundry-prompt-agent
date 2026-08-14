@@ -124,7 +124,10 @@ Token Spend          → how many tokens did we use?
 Token Cost           → how much did those tokens cost?
 Token Efficiency     → tokens and cost per task
 Token Effectiveness  → tokens and cost per *successful* task
+Token Economics      → business value created per dollar of token spend
 ```
+
+The economics rung multiplies successful tasks by an assumed `VALUE_PER_SUCCESS_USD` (a business assumption, set in `.env`) to produce a value-per-dollar ratio.
 
 The key insight this demonstrates:
 

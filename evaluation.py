@@ -14,6 +14,7 @@ from openai.types.evals.create_eval_jsonl_run_data_source_param import (
 
 from src.foundry_prompt_agent.agent import ask_agent, project_client
 from src.foundry_prompt_agent.tokenomics import (
+    summarize_economics,
     summarize_effectiveness,
     summarize_efficiency,
 )
@@ -44,6 +45,9 @@ BEHAVIOR_THRESHOLD = float(
 SCOPE_THRESHOLD = float(
     os.getenv("SCOPE_PASS_RATE_THRESHOLD", "1.00")
 )
+
+# Business assumption: value of one successful task. Varies by deployment context.
+VALUE_PER_SUCCESS_USD = float(os.getenv("VALUE_PER_SUCCESS_USD", "0.10"))
 
 
 def load_dataset(path: Path) -> list[dict]:
@@ -98,6 +102,14 @@ def print_effectiveness(summary: dict) -> None:
     print(f"Successful tasks: {summary['successful_tasks']:.1f}")
     print(f"Tokens per success: {summary['tokens_per_success']:,.1f}")
     print(f"Cost per success: ${summary['cost_per_success']:.6f}")
+
+
+def print_economics(summary: dict) -> None:
+    print("\n=== Token Economics ===")
+    print(f"Value per success (assumed): ${summary['value_per_success']:.2f}")
+    print(f"Total value created: ${summary['total_value']:.2f}")
+    print(f"Total token cost: ${summary['total_cost']:.6f}")
+    print(f"Value per dollar: {summary['value_per_dollar']:,.1f}x")
 
 
 def run_cloud_evaluation() -> None:
@@ -307,7 +319,13 @@ def main() -> None:
     # Behavior rubric is the success signal; scope adherence is a separate guardrail.
     if run.status == "completed":
         success_rate = get_pass_rate(run, "contoso_behavior_rubric")
-        print_effectiveness(summarize_effectiveness(efficiency, success_rate))
+        effectiveness = summarize_effectiveness(efficiency, success_rate)
+        print_effectiveness(effectiveness)
+
+        economics = summarize_economics(
+            efficiency, effectiveness, VALUE_PER_SUCCESS_USD
+        )
+        print_economics(economics)
 
     enforce_quality_gate(run)
 
