@@ -3,7 +3,7 @@ PRICING = {
     "gpt-5": {"input": 1.25, "cached": 0.125, "output": 10.00},
 }
 
-
+# Step 2: Token Cost
 def compute_cost(usage: dict) -> float:
     rates = PRICING[usage["model"]]  # KeyError here is a feature: unknown model = unpriced spend
     billed_input = usage["input_tokens"] - usage["cached_tokens"]
@@ -13,7 +13,7 @@ def compute_cost(usage: dict) -> float:
         + usage["output_tokens"] / 1_000_000 * rates["output"]
     )
 
-
+# Step 3: Token Efficiency
 def summarize_efficiency(usages: list[dict]) -> dict:
     tasks = len(usages)
     if tasks == 0:
@@ -41,4 +41,22 @@ def summarize_efficiency(usages: list[dict]) -> dict:
         "output_tokens_per_task": total_output / tasks,
         "cost_per_task": total_cost / tasks,
     }
+
+
+def summarize_effectiveness(efficiency: dict, success_rate: float) -> dict:
+    if success_rate <= 0:
+        return {
+            "success_rate": success_rate,
+            "successful_tasks": 0.0,
+            "tokens_per_success": float("inf"),
+            "cost_per_success": float("inf"),
+        }
+
+    return {
+        "success_rate": success_rate,
+        "successful_tasks": success_rate * efficiency["tasks"],
+        "tokens_per_success": efficiency["tokens_per_task"] / success_rate,
+        "cost_per_success": efficiency["cost_per_task"] / success_rate,
+    }
+
 

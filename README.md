@@ -44,7 +44,8 @@ Only the parts that matter for understanding the flow:
 | Path | Purpose |
 | --- | --- |
 | [src/foundry_prompt_agent/](src/foundry_prompt_agent/) | Thin client. `agent.py` invokes the persisted Foundry Prompt Agent via `AIProjectClient`. |
-| [evaluation.py](evaluation.py) | Evaluation harness: generates fresh responses, runs cloud evaluation in Foundry, enforces the quality gate. |
+| [src/foundry_prompt_agent/tokenomics.py](src/foundry_prompt_agent/tokenomics.py) | Pure token-to-value math: pricing, cost, efficiency, and effectiveness. No Azure/Foundry dependency. |
+| [evaluation.py](evaluation.py) | Evaluation harness: generates fresh responses, runs cloud evaluation in Foundry, enforces the quality gate, and prints the token-to-value ladder. |
 | [evals/](evals/) | Curated JSONL evaluation datasets and generated result/trace files. |
 | [data/contoso.json](data/contoso.json) | The Contoso Coffee menu that backs the Azure AI Search index. |
 | [docs/](docs/) | Conceptual notes on evaluation, monitoring, and automation. |
@@ -114,6 +115,23 @@ uv run evaluation.py
 
 See [docs/evaluation.md](docs/evaluation.md) for the reasoning behind dataset design and evaluator selection.
 
+## Token-to-value ladder
+
+A highlight of this project is that the harness measures not just *whether the agent works* but *whether the spend is worth it*. After each run, `evaluation.py` prints a bottom-up tokenomics ladder built from the token usage captured on every agent call:
+
+```text
+Token Spend          → how many tokens did we use?
+Token Cost           → how much did those tokens cost?
+Token Efficiency     → tokens and cost per task
+Token Effectiveness  → tokens and cost per *successful* task
+```
+
+The key insight this demonstrates:
+
+> Foundry's monitoring dashboard already shows token spend and cost for production traffic. What it does **not** do is tie tokens to *task success* or *business value*. That link only exists because this repo owns the evaluation harness, so the higher rungs of the ladder are where the Python side earns its keep.
+
+The pure math lives in [src/foundry_prompt_agent/tokenomics.py](src/foundry_prompt_agent/tokenomics.py). For the full framework, the per-step deep dive, and the design decisions behind each rung, see [docs/token_to_value_ladder.md](docs/token_to_value_ladder.md).
+
 ## CI/CD
 
 Two workflows live under [.github/workflows/](.github/workflows/):
@@ -151,6 +169,7 @@ Conceptual notes under [docs/](docs/):
 - [docs/evaluation.md](docs/evaluation.md) — how evaluation datasets, evaluator families (deterministic, LLM-as-judge, custom rubric), baselines, and regression comparisons work; also covers cloud evaluation from Python and the Agent Optimizer.
 - [docs/monitoring.md](docs/monitoring.md) — operational vs. AI-quality health, traces, continuous vs. scheduled evaluation, alerts, and red-team monitoring.
 - [docs/automation.md](docs/automation.md) — scheduled regression, the CI/CD gate, GitHub Actions mental model, OIDC federated identity, and quality gates.
+- [docs/token_to_value_ladder.md](docs/token_to_value_ladder.md) — the token-to-value ladder: turning raw token usage into cost, efficiency, and effectiveness, with a per-step deep dive.
 
 ## Future work
 

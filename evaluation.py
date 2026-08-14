@@ -13,7 +13,10 @@ from openai.types.evals.create_eval_jsonl_run_data_source_param import (
 )
 
 from src.foundry_prompt_agent.agent import ask_agent, project_client
-from src.foundry_prompt_agent.tokenomics import summarize_efficiency
+from src.foundry_prompt_agent.tokenomics import (
+    summarize_effectiveness,
+    summarize_efficiency,
+)
 
 
 DATASET_PATH = Path("evals/contoso_agent_eval_v1.jsonl")
@@ -52,7 +55,7 @@ def load_dataset(path: Path) -> list[dict]:
         ]
 
 
-def generate_results() -> None:
+def generate_results() -> dict:
     cases = load_dataset(DATASET_PATH)
     usages = []
 
@@ -72,7 +75,10 @@ def generate_results() -> None:
             output_file.write(json.dumps(result) + "\n")
 
     print(f"Saved agent responses to {RESULTS_PATH}")
-    print_efficiency(summarize_efficiency(usages))
+
+    efficiency = summarize_efficiency(usages)
+    print_efficiency(efficiency)
+    return efficiency
 
 
 def print_efficiency(summary: dict) -> None:
@@ -84,6 +90,14 @@ def print_efficiency(summary: dict) -> None:
     print(f"  output/task: {summary['output_tokens_per_task']:,.1f}")
     print(f"Total cost: ${summary['total_cost']:.6f}")
     print(f"Cost per task: ${summary['cost_per_task']:.6f}")
+
+
+def print_effectiveness(summary: dict) -> None:
+    print("\n=== Token Effectiveness ===")
+    print(f"Success rate: {summary['success_rate']:.1%}")
+    print(f"Successful tasks: {summary['successful_tasks']:.1f}")
+    print(f"Tokens per success: {summary['tokens_per_success']:,.1f}")
+    print(f"Cost per success: ${summary['cost_per_success']:.6f}")
 
 
 def run_cloud_evaluation() -> None:
@@ -284,11 +298,16 @@ def enforce_quality_gate(run) -> None:
 
 
 def main() -> None:
-    generate_results()
+    efficiency = generate_results()
     run = run_cloud_evaluation()
-    
+
     print(f"Final status: {run.status}")
     print(f"Foundry report: {run.report_url}")
+
+    # Behavior rubric is the success signal; scope adherence is a separate guardrail.
+    if run.status == "completed":
+        success_rate = get_pass_rate(run, "contoso_behavior_rubric")
+        print_effectiveness(summarize_effectiveness(efficiency, success_rate))
 
     enforce_quality_gate(run)
 
