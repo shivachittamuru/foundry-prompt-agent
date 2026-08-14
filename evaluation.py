@@ -13,6 +13,7 @@ from openai.types.evals.create_eval_jsonl_run_data_source_param import (
 )
 
 from src.foundry_prompt_agent.agent import ask_agent, project_client
+from src.foundry_prompt_agent.tokenomics import compute_cost
 
 
 DATASET_PATH = Path("evals/contoso_agent_eval_v1.jsonl")
@@ -44,18 +45,25 @@ SCOPE_THRESHOLD = float(
 
 def load_dataset(path: Path) -> list[dict]:
     with path.open("r", encoding="utf-8") as file:
-        return [json.loads(line) for line in file if line.strip()]
+        return [
+            json.loads(line)
+            for line in file
+            if line.strip() and not line.lstrip().startswith("//")
+        ]
 
 
 def generate_results() -> None:
     cases = load_dataset(DATASET_PATH)
+    total_agent_cost = 0.0
 
     with RESULTS_PATH.open("w", encoding="utf-8") as output_file:
         for case in cases:
             print(f"Running agent: {case['name']}")
 
-            response = ask_agent(case["query"])
+            response, usage = ask_agent(case["query"])
+            total_agent_cost += compute_cost(usage)
 
+            # Foundry validates every uploaded field, so usage stays local.
             result = {
                 **case,
                 "response": response,
@@ -64,6 +72,7 @@ def generate_results() -> None:
             output_file.write(json.dumps(result) + "\n")
 
     print(f"Saved agent responses to {RESULTS_PATH}")
+    print(f"Total agent cost: ${total_agent_cost:.6f}")
 
 
 def run_cloud_evaluation() -> None:
@@ -166,7 +175,36 @@ def run_cloud_evaluation() -> None:
 
     print(f"Final status: {run.status}")
 
+    if run.status != "completed":
+        report_run_failure(openai_client, evaluation.id, run)
+
     return run
+
+
+def report_run_failure(openai_client, eval_id: str, run) -> None:
+    print(f"\n=== Run did not complete: {run.status} ===")
+
+    run_error = getattr(run, "error", None)
+    if run_error:
+        print(f"Run-level error: {run_error}")
+
+    counts = getattr(run, "result_counts", None)
+    if counts:
+        print(f"Result counts: {counts}")
+
+    # Surface per-item errors, which usually explain evaluator failures.
+    try:
+        output_items = openai_client.evals.runs.output_items.list(
+            eval_id=eval_id,
+            run_id=run.id,
+        )
+        for item in output_items:
+            for result in getattr(item, "results", []) or []:
+                if isinstance(result, dict) and result.get("error"):
+                    print(f"- {result.get('name')}: {result['error']}")
+    except Exception as exc:  # diagnostics only; never mask the original failure
+        print(f"Could not fetch per-item errors: {exc}")
+
 
 
 def get_pass_rate(run, evaluator_name: str) -> float:

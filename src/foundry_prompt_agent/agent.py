@@ -18,14 +18,9 @@ AGENT_NAME = os.environ["FOUNDRY_AGENT_NAME"]
 AGENT_VERSION = os.environ["FOUNDRY_AGENT_VERSION"]
 
 
-def ask_agent(query: str) -> str:
+def ask_agent(query: str) -> tuple[str, dict]:
     response = openai_client.responses.create(
-        input=[
-            {
-                "role": "user",
-                "content": query,
-            }
-        ],
+        input=[{"role": "user", "content": query}],
         extra_body={
             "agent_reference": {
                 "name": AGENT_NAME,
@@ -35,12 +30,22 @@ def ask_agent(query: str) -> str:
         },
     )
 
-    return response.output_text
+    usage = {
+        "model": response.model,
+        "input_tokens": response.usage.input_tokens,
+        "output_tokens": response.usage.output_tokens,
+        "total_tokens": response.usage.total_tokens,
+        "cached_tokens": response.usage.input_tokens_details.cached_tokens,
+        "reasoning_tokens": response.usage.output_tokens_details.reasoning_tokens,
+    }
+
+    return response.output_text, usage
 
 
 if __name__ == "__main__":
-    answer = ask_agent("Tell me what you can help with.")
+    answer, usage = ask_agent("Tell me what you can help with.")
     print(answer)
+    print(usage)
 
 ## run this using following uv command:
 # uv run src/foundry_prompt_agent/agent.py 
