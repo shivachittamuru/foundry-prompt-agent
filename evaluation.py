@@ -14,6 +14,7 @@ from openai.types.evals.create_eval_jsonl_run_data_source_param import (
 
 from src.foundry_prompt_agent.agent import ask_agent, project_client
 from src.foundry_prompt_agent.tokenomics import (
+    ladder_record,
     summarize_economics,
     summarize_effectiveness,
     summarize_efficiency,
@@ -23,6 +24,7 @@ from src.foundry_prompt_agent.tokenomics import (
 
 DATASET_PATH = Path("evals/contoso_agent_eval_v1.jsonl")
 RESULTS_PATH = Path("evals/results_v1.jsonl")
+HISTORY_PATH = Path("evals/tokenomics_history.jsonl")
 
 JUDGE_MODEL = os.environ["FOUNDRY_JUDGE_MODEL"]
 
@@ -126,6 +128,11 @@ def print_margin(summary: dict) -> None:
     print(f"- Error/risk cost:      ${summary['error_risk_cost']:.2f}")
     print(f"= Token margin:         ${summary['margin']:.2f}")
     print(f"Profitable: {summary['profitable']}")
+
+
+def append_history(record: dict) -> None:
+    with HISTORY_PATH.open("a", encoding="utf-8") as history_file:
+        history_file.write(json.dumps(record) + "\n")
 
 
 def run_cloud_evaluation() -> None:
@@ -352,6 +359,14 @@ def main() -> None:
             JUDGE_COST_PER_RUN_USD,
         )
         print_margin(margin)
+
+        record = {
+            "run_id": RUN_ID,
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            **ladder_record(efficiency, effectiveness, economics, margin),
+        }
+        append_history(record)
+        print(f"\nAppended ladder to {HISTORY_PATH}")
 
     enforce_quality_gate(run)
 

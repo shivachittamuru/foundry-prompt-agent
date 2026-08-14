@@ -107,5 +107,27 @@ def summarize_margin(
     }
 
 
+def ladder_record(
+    efficiency: dict,
+    effectiveness: dict,
+    economics: dict,
+    margin: dict,
+) -> dict:
+    return {
+        "tasks": efficiency["tasks"],
+        "total_tokens": efficiency["total_tokens"],
+        "total_cost": efficiency["total_cost"],
+        "tokens_per_task": efficiency["tokens_per_task"],
+        "cost_per_task": efficiency["cost_per_task"],
+        "success_rate": effectiveness["success_rate"],
+        "successful_tasks": effectiveness["successful_tasks"],
+        "cost_per_success": effectiveness["cost_per_success"],
+        "value_per_dollar": economics["value_per_dollar"],
+        "margin": margin["margin"],
+        "profitable": margin["profitable"],
+    }
+
+
+
 
 

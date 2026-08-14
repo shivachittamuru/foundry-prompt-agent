@@ -264,6 +264,12 @@ The deferred judge and evaluation spend finally gets a home through `judge_cost_
 
 The lesson: margin is where quality, cost, and business value meet. A technically impressive agent with a poor success rate or heavy review burden can still lose money, and this rung is the only one that makes that visible.
 
+## Run history
+
+A single run prints the ladder once. The value grows when you can watch it move. After each completed run, `evaluation.py` appends one compact record to [../evals/tokenomics_history.jsonl](../evals/tokenomics_history.jsonl) through the pure `ladder_record()` helper, tagged with the run id and a UTC timestamp.
+
+Each line captures the headline numbers from every rung: tasks, total tokens and cost, cost per task, success rate, cost per success, value per dollar, and margin. Because the file is append-only JSONL, a change to the prompt or model can be judged on the trend rather than a single snapshot. A prompt edit that raises quality but also raises cost per success is easy to miss in one run and obvious across ten.
+
 ## What comes next
 
 All six rungs are implemented: tokens, dollars, cost per task, cost per success, value per dollar, and risk-adjusted margin. The ladder is complete from token visibility at the bottom to token accountability at the top.
@@ -272,6 +278,6 @@ The natural extensions from here are about strengthening the inputs rather than 
 
 * Replace the assumed business costs with measured figures once real review time and failure impact are known.
 * Estimate judge and evaluation spend to sharpen the AI runtime cost term.
-* Track the ladder across runs so prompt or model changes can be judged on margin, not just on quality.
+* Chart the appended run history to visualize margin trends over time.
 
 The through-line of the whole ladder matches the core lesson of the project: trust comes from repeatable evidence, and value comes from measuring spend against outcomes rather than counting tokens in isolation.

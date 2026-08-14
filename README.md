@@ -130,6 +130,8 @@ Token Margin         → value minus AI runtime, human review, and error/risk co
 
 The economics rung multiplies successful tasks by an assumed `VALUE_PER_SUCCESS_USD` (a business assumption, set in `.env`) to produce a value-per-dollar ratio. The margin rung then subtracts real-world costs (human review, error/risk) to show whether the value is actually profitable.
 
+Each completed run appends a compact ladder record to `evals/tokenomics_history.jsonl`, so prompt or model changes can be judged on the trend rather than a single snapshot.
+
 The key insight this demonstrates:
 
 > Foundry's monitoring dashboard already shows token spend and cost for production traffic. What it does **not** do is tie tokens to *task success* or *business value*. That link only exists because this repo owns the evaluation harness, so the higher rungs of the ladder are where the Python side earns its keep.
