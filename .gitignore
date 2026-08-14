@@ -14,5 +14,4 @@ wheels/
 .env
 
 # Github Workflows
-.github/workflows/*
-!.github/workflows/*.yml
+.github/workflows/agent-builtin-eval.yml

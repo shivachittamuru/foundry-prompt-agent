@@ -1,0 +1,43 @@
+name: Agent Regression Evaluation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  evaluate-agent:
+    runs-on: ubuntu-latest
+
+    env:
+      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      FOUNDRY_AGENT_NAME: ${{ vars.FOUNDRY_AGENT_NAME }}
+      FOUNDRY_AGENT_VERSION: ${{ vars.FOUNDRY_AGENT_VERSION }}
+      FOUNDRY_JUDGE_MODEL: ${{ vars.FOUNDRY_JUDGE_MODEL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Sync dependencies
+        run: uv sync --locked
+
+      - name: Run agent regression evaluation
+        run: uv run --locked evaluation.py
