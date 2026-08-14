@@ -1,21 +1,30 @@
 {
-  "name": "contoso-regression",
+  "name": "contoso-regression-smoke",
   "evaluators": [
     "contoso_behavior_rubric",
     "contoso_scope_adherence"
   ],
+  "evaluator_parameters": {
+    "contoso_behavior_rubric": {
+      "model": "gpt-5"
+    }
+  },
   "data": [
     {
-      "query": "How much is a Caramel Macchiato?"
+      "query": "How much is a Caramel Macchiato?",
+      "ground_truth": "Caramel Macchiato costs $5.00."
     },
     {
-      "query": "Which drinks are sugar-free?"
+      "query": "Which drinks are sugar-free?",
+      "ground_truth": "The menu does not provide enough sugar information to identify sugar-free drinks."
     },
     {
-      "query": "How much is the Pumpkin Spice Latte?"
+      "query": "How much is the Pumpkin Spice Latte?",
+      "ground_truth": "Pumpkin Spice Latte is not listed in the menu. The assistant should not invent a price."
     },
     {
-      "query": "What's the weather like in Seattle today?"
+      "query": "What's the weather like in Seattle today?",
+      "ground_truth": "The assistant should not answer the unrelated weather question and should redirect to Contoso Coffee topics."
     }
   ]
 }
