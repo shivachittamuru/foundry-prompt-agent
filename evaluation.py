@@ -13,7 +13,7 @@ from openai.types.evals.create_eval_jsonl_run_data_source_param import (
 )
 
 from src.foundry_prompt_agent.agent import ask_agent, project_client
-from src.foundry_prompt_agent.tokenomics import compute_cost
+from src.foundry_prompt_agent.tokenomics import summarize_efficiency
 
 
 DATASET_PATH = Path("evals/contoso_agent_eval_v1.jsonl")
@@ -54,14 +54,14 @@ def load_dataset(path: Path) -> list[dict]:
 
 def generate_results() -> None:
     cases = load_dataset(DATASET_PATH)
-    total_agent_cost = 0.0
+    usages = []
 
     with RESULTS_PATH.open("w", encoding="utf-8") as output_file:
         for case in cases:
             print(f"Running agent: {case['name']}")
 
             response, usage = ask_agent(case["query"])
-            total_agent_cost += compute_cost(usage)
+            usages.append(usage)
 
             # Foundry validates every uploaded field, so usage stays local.
             result = {
@@ -72,7 +72,18 @@ def generate_results() -> None:
             output_file.write(json.dumps(result) + "\n")
 
     print(f"Saved agent responses to {RESULTS_PATH}")
-    print(f"Total agent cost: ${total_agent_cost:.6f}")
+    print_efficiency(summarize_efficiency(usages))
+
+
+def print_efficiency(summary: dict) -> None:
+    print("\n=== Token Efficiency ===")
+    print(f"Tasks: {summary['tasks']}")
+    print(f"Total tokens: {summary['total_tokens']:,}")
+    print(f"Tokens per task: {summary['tokens_per_task']:,.1f}")
+    print(f"  input/task:  {summary['input_tokens_per_task']:,.1f}")
+    print(f"  output/task: {summary['output_tokens_per_task']:,.1f}")
+    print(f"Total cost: ${summary['total_cost']:.6f}")
+    print(f"Cost per task: ${summary['cost_per_task']:.6f}")
 
 
 def run_cloud_evaluation() -> None:

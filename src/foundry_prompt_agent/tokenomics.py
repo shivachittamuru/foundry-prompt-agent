@@ -12,3 +12,33 @@ def compute_cost(usage: dict) -> float:
         + usage["cached_tokens"] / 1_000_000 * rates["cached"]
         + usage["output_tokens"] / 1_000_000 * rates["output"]
     )
+
+
+def summarize_efficiency(usages: list[dict]) -> dict:
+    tasks = len(usages)
+    if tasks == 0:
+        return {
+            "tasks": 0,
+            "total_tokens": 0,
+            "total_cost": 0.0,
+            "tokens_per_task": 0.0,
+            "input_tokens_per_task": 0.0,
+            "output_tokens_per_task": 0.0,
+            "cost_per_task": 0.0,
+        }
+
+    total_tokens = sum(u["total_tokens"] for u in usages)
+    total_input = sum(u["input_tokens"] for u in usages)
+    total_output = sum(u["output_tokens"] for u in usages)
+    total_cost = sum(compute_cost(u) for u in usages)
+
+    return {
+        "tasks": tasks,
+        "total_tokens": total_tokens,
+        "total_cost": total_cost,
+        "tokens_per_task": total_tokens / tasks,
+        "input_tokens_per_task": total_input / tasks,
+        "output_tokens_per_task": total_output / tasks,
+        "cost_per_task": total_cost / tasks,
+    }
+
