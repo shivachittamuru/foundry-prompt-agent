@@ -6,6 +6,8 @@ The agent itself is small. The interesting engineering is the harness around it 
 
 ## The hill-climbing framework
 
+![Token ROI Ladder from token visibility to token accountability](images/token-roi-ladder.png)
+
 Token economics works best as a ladder climbed one rung at a time. Each rung reframes the conversation, moving it away from raw AI usage and toward AI value.
 
 ```text
