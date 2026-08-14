@@ -22,8 +22,8 @@ from src.foundry_prompt_agent.tokenomics import (
 )
 
 
-DATASET_PATH = Path("evals/contoso_agent_eval_v1.jsonl")
-RESULTS_PATH = Path("evals/results_v1.jsonl")
+DATASET_PATH = Path("evals/contoso_agent_eval_v2.jsonl")
+RESULTS_PATH = Path("evals/results_v2.jsonl")
 HISTORY_PATH = Path("evals/tokenomics_history.jsonl")
 
 JUDGE_MODEL = os.environ["FOUNDRY_JUDGE_MODEL"]

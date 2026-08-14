@@ -51,7 +51,7 @@ The Prompt Agent runs in Microsoft Foundry. Everything on the ladder is owned by
 > [!IMPORTANT]
 > Foundry's monitoring dashboard already shows Steps 1 and 2 for production traffic (see [monitoring.md](monitoring.md), "Token usage" and "Latency"). What it does not do is tie tokens to task success or business value. That link exists only because this repository owns the evaluation harness. Steps 3 through 6 are where the Python harness earns its keep.
 
-The rest of this document goes deep on the four rungs implemented so far.
+The rest of this document examines all six implemented rungs in depth.
 
 ## Step 1: Token Spend
 
@@ -271,6 +271,23 @@ The lesson: margin is where quality, cost, and business value meet. A technicall
 A single run prints the ladder once. The value grows when you can watch it move. After each completed run, `evaluation.py` appends one compact record to [../evals/tokenomics_history.jsonl](../evals/tokenomics_history.jsonl) through the pure `ladder_record()` helper, tagged with the run id and a UTC timestamp.
 
 Each line captures the headline numbers from every rung: tasks, total tokens and cost, cost per task, success rate, cost per success, value per dollar, and margin. Because the file is append-only JSONL, a change to the prompt or model can be judged on the trend rather than a single snapshot. A prompt edit that raises quality but also raises cost per success is easy to miss in one run and obvious across ten.
+
+### Observations from the first three runs
+
+The first three records contain 2, 4, and 20 tasks respectively. All three report a 100 percent behavior success rate, so `cost_per_success` equals `cost_per_task` in every run. No token spend was lost to failed behavior cases, and the error/risk term contributed zero to margin under the current assumptions.
+
+The normalized results vary materially with sample size:
+
+* Tokens per task fell from 2,680 in the two-task run to 1,560 in the four-task run, then settled at 1,813.4 in the twenty-task run.
+* Cost per task fell from $0.009794 to $0.004621, then rose to $0.005617. The twenty-task result is about 43 percent cheaper per task than the two-task result, but about 22 percent more expensive than the four-task result.
+* Value per dollar moved inversely because success stayed at 100 percent and value per success remained $0.10: 10.2x, 21.6x, then 17.8x.
+* Margin per task was comparatively stable at approximately $0.0702, $0.0754, and $0.0744. Total margin rose mainly because more successful tasks were processed, so total margin should not be used to compare runs of different sizes.
+
+The four-task run is the most efficient of the three, but it is too small to establish that the agent became more efficient. Different case mixes can produce large swings in prompt length, retrieved context, reasoning, and response length. The twenty-task run is the strongest current baseline because it averages over more cases, although one successful run is still not enough to establish a stable trend.
+
+The fact that the two-task run used fewer total tokens than the four-task run but cost slightly more shows that token composition matters. Input, cached input, and output have different prices. The current history stores only total tokens and total cost, so it cannot explain whether this difference came from output volume, cache usage, or another part of the token mix.
+
+These comparisons are valid only when the model, pricing table, value-per-success assumption, review cost, error cost, and evaluation contract remain unchanged. Future history records should also capture those inputs, plus input, cached, output, and reasoning-token totals, to make changes attributable rather than merely observable.
 
 ## What comes next
 

@@ -48,6 +48,7 @@ Only the parts that matter for understanding the flow:
 | [evaluation.py](evaluation.py) | Evaluation harness: generates fresh responses, runs cloud evaluation in Foundry, enforces the quality gate, and prints the token-to-value ladder. |
 | [evals/](evals/) | Curated JSONL evaluation datasets and generated result/trace files. |
 | [data/contoso.json](data/contoso.json) | The Contoso Coffee menu that backs the Azure AI Search index. |
+| [docs/create_prompt_agent.md](docs/create_prompt_agent.md) | One-time setup guide for creating the Foundry Prompt Agent and its Azure AI Search index. |
 | [docs/](docs/) | Conceptual notes on evaluation, monitoring, and automation. |
 | [.github/workflows/](.github/workflows/) | CI regression evaluation workflows. |
 
@@ -58,6 +59,8 @@ Only the parts that matter for understanding the flow:
 - **Azure CLI** (`az`) — the client authenticates with `AzureCliCredential`.
 - Access to the appropriate **Microsoft Foundry project**.
 - An **existing Prompt Agent** and **Azure AI Search** configuration in that Foundry project. The custom evaluators (`contoso_behavior_rubric`, `contoso_scope_adherence`) must also be registered in Foundry.
+
+If you are starting from scratch, follow [docs/create_prompt_agent.md](docs/create_prompt_agent.md) first. It walks through building the `contoso-coffee-index` from [data/contoso.json](data/contoso.json), creating the Prompt Agent with its instructions, and attaching the index as a tool.
 
 ## Setup with uv
 
@@ -75,6 +78,8 @@ az login
 # create your local env file and fill in the values
 cp .env.example .env
 ```
+
+The agent name and version below come from the agent you create in [docs/create_prompt_agent.md](docs/create_prompt_agent.md).
 
 Populate `.env` with your Foundry project details (see [.env.example](.env.example)):
 
@@ -172,6 +177,7 @@ The recurring theme across every stage: **trust comes from repeatable evaluation
 
 Conceptual notes under [docs/](docs/):
 
+- [docs/create_prompt_agent.md](docs/create_prompt_agent.md) — one-time setup: creating the Azure AI Search index from the menu data, creating the Prompt Agent in Foundry with its instructions, and attaching the index as a tool.
 - [docs/evaluation.md](docs/evaluation.md) — how evaluation datasets, evaluator families (deterministic, LLM-as-judge, custom rubric), baselines, and regression comparisons work; also covers cloud evaluation from Python and the Agent Optimizer.
 - [docs/monitoring.md](docs/monitoring.md) — operational vs. AI-quality health, traces, continuous vs. scheduled evaluation, alerts, and red-team monitoring.
 - [docs/automation.md](docs/automation.md) — scheduled regression, the CI/CD gate, GitHub Actions mental model, OIDC federated identity, and quality gates.
