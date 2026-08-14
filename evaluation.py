@@ -171,8 +171,9 @@ def run_cloud_evaluation() -> None:
 
 def get_pass_rate(run, evaluator_name: str) -> float:
     for result in run.per_testing_criteria_results or []:
-        if result.name == evaluator_name:
-            return float(result.pass_rate)
+        if result.testing_criteria == evaluator_name:
+            total = result.passed + result.failed
+            return result.passed / total if total else 0.0
 
     raise RuntimeError(
         f"Evaluator result not found: {evaluator_name}"
