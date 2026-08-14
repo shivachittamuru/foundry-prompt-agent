@@ -1,7 +1,9 @@
 import json
 import os
+import sys
 import time
 from pathlib import Path
+from datetime import datetime, timezone
 
 from azure.ai.projects.models import TestingCriterionAzureAIEvaluator
 from openai.types.eval_create_params import DataSourceConfigCustom
@@ -13,13 +15,31 @@ from openai.types.evals.create_eval_jsonl_run_data_source_param import (
 from src.foundry_prompt_agent.agent import ask_agent, project_client
 
 
-DATASET_PATH = Path("evals/contoso_agent_eval_v2.jsonl")
-RESULTS_PATH = Path("evals/results_v2.jsonl")
+DATASET_PATH = Path("evals/contoso_agent_eval_v1.jsonl")
+RESULTS_PATH = Path("evals/results_v1.jsonl")
 
 JUDGE_MODEL = os.environ["FOUNDRY_JUDGE_MODEL"]
 
+
 DATASET_NAME = "contoso-agent-results"
-DATASET_VERSION = "2"
+
+github_sha = os.getenv("GITHUB_SHA")
+
+RUN_ID = (
+    github_sha[:8]
+    if github_sha
+    else datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+)
+
+DATASET_VERSION = RUN_ID
+
+BEHAVIOR_THRESHOLD = float(
+    os.getenv("BEHAVIOR_PASS_RATE_THRESHOLD", "0.90")
+)
+
+SCOPE_THRESHOLD = float(
+    os.getenv("SCOPE_PASS_RATE_THRESHOLD", "1.00")
+)
 
 
 def load_dataset(path: Path) -> list[dict]:
@@ -78,29 +98,33 @@ def run_cloud_evaluation() -> None:
         },
     )
 
-    # 3. Define exactly two evaluators
+    # 3. Define the custom evaluators registered in Foundry.
+    # `name` must match the keys read by enforce_quality_gate, and
+    # `evaluator_name` must match the names registered in Foundry.
     testing_criteria = [
-        # Deterministic evaluator
         TestingCriterionAzureAIEvaluator(
             type="azure_ai_evaluator",
-            name="f1",
-            evaluator_name="builtin.f1_score",
-            data_mapping={
-                "response": "{{item.response}}",
-                "ground_truth": "{{item.ground_truth}}",
-            },
-        ),
-
-        # LLM-as-a-judge evaluator
-        TestingCriterionAzureAIEvaluator(
-            type="azure_ai_evaluator",
-            name="coherence",
-            evaluator_name="builtin.coherence",
+            name="contoso_behavior_rubric",
+            evaluator_name="contoso_behavior_rubric",
             initialization_parameters={
-                "model": JUDGE_MODEL,
+                "deployment_name": JUDGE_MODEL,
+                "pass_threshold": 0.5,
             },
             data_mapping={
                 "query": "{{item.query}}",
+                "ground_truth": "{{item.ground_truth}}",
+                "response": "{{item.response}}",
+            },
+        ),
+        TestingCriterionAzureAIEvaluator(
+            type="azure_ai_evaluator",
+            name="contoso_scope_adherence",
+            evaluator_name="contoso_scope_adherence",
+            initialization_parameters={
+                "pass_threshold": 0.5,
+            },
+            data_mapping={
+                "category": "{{item.category}}",
                 "response": "{{item.response}}",
             },
         ),
@@ -108,7 +132,7 @@ def run_cloud_evaluation() -> None:
 
     # 4. Create the evaluation definition in Foundry
     evaluation = openai_client.evals.create(
-        name="contoso-agent-baseline",
+        name=f"contoso-regression-{RUN_ID}",
         data_source_config=data_source_config,
         testing_criteria=testing_criteria,
     )
@@ -142,10 +166,81 @@ def run_cloud_evaluation() -> None:
 
     print(f"Final status: {run.status}")
 
+    return run
+
+
+def get_pass_rate(run, evaluator_name: str) -> float:
+    for result in run.per_testing_criteria_results or []:
+        if result.name == evaluator_name:
+            return float(result.pass_rate)
+
+    raise RuntimeError(
+        f"Evaluator result not found: {evaluator_name}"
+    )
+
+
+def enforce_quality_gate(run) -> None:
+    if run.status != "completed":
+        raise RuntimeError(
+            f"Evaluation did not complete successfully: {run.status}"
+        )
+
+    behavior_pass_rate = get_pass_rate(
+        run,
+        "contoso_behavior_rubric",
+    )
+
+    scope_pass_rate = get_pass_rate(
+        run,
+        "contoso_scope_adherence",
+    )
+
+    print("\n=== Regression Gate ===")
+    print(
+        f"Behavior rubric: "
+        f"{behavior_pass_rate:.1%} "
+        f"(required >= {BEHAVIOR_THRESHOLD:.1%})"
+    )
+    print(
+        f"Scope adherence: "
+        f"{scope_pass_rate:.1%} "
+        f"(required >= {SCOPE_THRESHOLD:.1%})"
+    )
+
+    failures = []
+
+    if behavior_pass_rate < BEHAVIOR_THRESHOLD:
+        failures.append(
+            "Behavior rubric regression: "
+            f"{behavior_pass_rate:.1%} "
+            f"< {BEHAVIOR_THRESHOLD:.1%}"
+        )
+
+    if scope_pass_rate < SCOPE_THRESHOLD:
+        failures.append(
+            "Scope adherence regression: "
+            f"{scope_pass_rate:.1%} "
+            f"< {SCOPE_THRESHOLD:.1%}"
+        )
+
+    if failures:
+        print("\nQUALITY GATE FAILED")
+        for failure in failures:
+            print(f"- {failure}")
+
+        sys.exit(1)
+
+    print("\nQUALITY GATE PASSED")
+
 
 def main() -> None:
     generate_results()
-    run_cloud_evaluation()
+    run = run_cloud_evaluation()
+    
+    print(f"Final status: {run.status}")
+    print(f"Foundry report: {run.report_url}")
+
+    enforce_quality_gate(run)
 
 
 if __name__ == "__main__":

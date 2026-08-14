@@ -2,6 +2,13 @@ name: Agent Regression Evaluation
 
 on:
   workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - "evals/**"
+  #     - "src/**"
+  #     - ".github/workflows/agent-regression-eval.yml"
 
 permissions:
   id-token: write
@@ -10,12 +17,16 @@ permissions:
 jobs:
   evaluate-agent:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     env:
       FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
       FOUNDRY_AGENT_NAME: ${{ vars.FOUNDRY_AGENT_NAME }}
       FOUNDRY_AGENT_VERSION: ${{ vars.FOUNDRY_AGENT_VERSION }}
       FOUNDRY_JUDGE_MODEL: ${{ vars.FOUNDRY_JUDGE_MODEL }}
+
+      BEHAVIOR_PASS_RATE_THRESHOLD: ${{ vars.BEHAVIOR_PASS_RATE_THRESHOLD }}
+      SCOPE_PASS_RATE_THRESHOLD: ${{ vars.SCOPE_PASS_RATE_THRESHOLD }}
 
     steps:
       - name: Checkout repository
