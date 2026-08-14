@@ -44,7 +44,7 @@ The Prompt Agent runs in Microsoft Foundry. Everything on the ladder is owned by
 | 3. Token Efficiency | Tokens per task? | `summarize_efficiency()` | total tokens divided by task count |
 | 4. Token Effectiveness | Tokens per successful task? | `summarize_effectiveness()` | success rate from the quality gate |
 | 5. Token Economics | Value per dollar? | `summarize_economics()` | business value per success |
-| 6. Token Margin | Profitable, risk-adjusted value? | not yet implemented | review cost and error/risk cost |
+| 6. Token Margin | Profitable, risk-adjusted value? | `summarize_margin()` | review cost and error/risk cost |
 
 > [!IMPORTANT]
 > Foundry's monitoring dashboard already shows Steps 1 and 2 for production traffic (see [monitoring.md](monitoring.md), "Token usage" and "Latency"). What it does not do is tie tokens to task success or business value. That link exists only because this repository owns the evaluation harness. Steps 3 through 6 are where the Python harness earns its keep.
@@ -223,12 +223,55 @@ Two honesty notes about this rung:
 
 The lesson: a single assumed number turns the cost ladder into a value ladder. The quality of that assumption, not the arithmetic, is what makes the ratio credible.
 
+## Step 6: Token Margin
+
+The question: are we creating profitable, risk-adjusted value?
+
+Economics compared value against token spend, but tokens are rarely the real cost of running an agent. Margin is the complete accounting:
+
+```text
+margin = business value created
+       - AI runtime cost      (tokens: agent plus any judge spend)
+       - human review cost    (a person checking outputs)
+       - error/risk cost      (what failures actually cost)
+```
+
+```python
+def summarize_margin(efficiency, effectiveness, economics,
+                     review_cost_per_task, error_cost_per_failure,
+                     judge_cost_per_run=0.0):
+    tasks = efficiency["tasks"]
+    failed_tasks = tasks - effectiveness["successful_tasks"]
+
+    value = economics["total_value"]
+    ai_runtime_cost = economics["total_cost"] + judge_cost_per_run
+    human_review_cost = review_cost_per_task * tasks
+    error_risk_cost = error_cost_per_failure * failed_tasks
+
+    margin = value - ai_runtime_cost - human_review_cost - error_risk_cost
+    return {..., "margin": margin, "profitable": margin > 0}
+```
+
+The three subtracted costs are business assumptions, so they follow the same pattern as value per success: environment variables with defaults.
+
+Two lessons surface here that the lower rungs cannot show.
+
+Human review cost often dominates. If a person skims every answer, that labor can dwarf the token cost and even push margin negative. This is the uncomfortable truth behind many claims that AI is cheap: the model tokens were cheap, but the human in the loop was not. Review cost also ties back to trust, because the more the success rate justifies automation, the less review the outputs need.
+
+Failures are punished twice. Error and risk cost scales with failed tasks, which is `tasks - successful_tasks`, so a low success rate hurts effectiveness in Step 4 and then hurts margin again here. Quality is not a soft metric on this ladder. It moves the money.
+
+The deferred judge and evaluation spend finally gets a home through `judge_cost_per_run`, which is added to AI runtime cost. It defaults to zero because Foundry does not reliably expose judge-token usage, so the model provides an honest slot to fill with an estimate rather than a fabricated number.
+
+The lesson: margin is where quality, cost, and business value meet. A technically impressive agent with a poor success rate or heavy review burden can still lose money, and this rung is the only one that makes that visible.
+
 ## What comes next
 
-Steps 1 through 5 are implemented: tokens, dollars, cost per task, cost per success, and value per dollar. The cost side is complete, and the value side has its first rung.
+All six rungs are implemented: tokens, dollars, cost per task, cost per success, value per dollar, and risk-adjusted margin. The ladder is complete from token visibility at the bottom to token accountability at the top.
 
-Step 6 closes the ladder and is not yet built:
+The natural extensions from here are about strengthening the inputs rather than adding rungs:
 
-* Token Margin subtracts human review cost and error or risk cost from the value created, and folds in the deferred judge and evaluation spend, to answer whether the value is profitable and risk-adjusted.
+* Replace the assumed business costs with measured figures once real review time and failure impact are known.
+* Estimate judge and evaluation spend to sharpen the AI runtime cost term.
+* Track the ladder across runs so prompt or model changes can be judged on margin, not just on quality.
 
 The through-line of the whole ladder matches the core lesson of the project: trust comes from repeatable evidence, and value comes from measuring spend against outcomes rather than counting tokens in isolation.

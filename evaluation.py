@@ -17,6 +17,7 @@ from src.foundry_prompt_agent.tokenomics import (
     summarize_economics,
     summarize_effectiveness,
     summarize_efficiency,
+    summarize_margin,
 )
 
 
@@ -48,6 +49,11 @@ SCOPE_THRESHOLD = float(
 
 # Business assumption: value of one successful task. Varies by deployment context.
 VALUE_PER_SUCCESS_USD = float(os.getenv("VALUE_PER_SUCCESS_USD", "0.10"))
+
+# Business assumptions for the margin rung. All vary by deployment context.
+REVIEW_COST_PER_TASK_USD = float(os.getenv("REVIEW_COST_PER_TASK_USD", "0.02"))
+ERROR_COST_PER_FAILURE_USD = float(os.getenv("ERROR_COST_PER_FAILURE_USD", "0.50"))
+JUDGE_COST_PER_RUN_USD = float(os.getenv("JUDGE_COST_PER_RUN_USD", "0.00"))
 
 
 def load_dataset(path: Path) -> list[dict]:
@@ -110,6 +116,16 @@ def print_economics(summary: dict) -> None:
     print(f"Total value created: ${summary['total_value']:.2f}")
     print(f"Total token cost: ${summary['total_cost']:.6f}")
     print(f"Value per dollar: {summary['value_per_dollar']:,.1f}x")
+
+
+def print_margin(summary: dict) -> None:
+    print("\n=== Token Margin ===")
+    print(f"Business value created: ${summary['value']:.2f}")
+    print(f"- AI runtime cost:      ${summary['ai_runtime_cost']:.6f}")
+    print(f"- Human review cost:    ${summary['human_review_cost']:.2f}")
+    print(f"- Error/risk cost:      ${summary['error_risk_cost']:.2f}")
+    print(f"= Token margin:         ${summary['margin']:.2f}")
+    print(f"Profitable: {summary['profitable']}")
 
 
 def run_cloud_evaluation() -> None:
@@ -326,6 +342,16 @@ def main() -> None:
             efficiency, effectiveness, VALUE_PER_SUCCESS_USD
         )
         print_economics(economics)
+
+        margin = summarize_margin(
+            efficiency,
+            effectiveness,
+            economics,
+            REVIEW_COST_PER_TASK_USD,
+            ERROR_COST_PER_FAILURE_USD,
+            JUDGE_COST_PER_RUN_USD,
+        )
+        print_margin(margin)
 
     enforce_quality_gate(run)
 

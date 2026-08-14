@@ -78,4 +78,34 @@ def summarize_economics(
     }
 
 
+# Step 6: Token Margin
+def summarize_margin(
+    efficiency: dict,
+    effectiveness: dict,
+    economics: dict,
+    review_cost_per_task: float,
+    error_cost_per_failure: float,
+    judge_cost_per_run: float = 0.0,
+) -> dict:
+    tasks = efficiency["tasks"]
+    failed_tasks = tasks - effectiveness["successful_tasks"]
+
+    value = economics["total_value"]
+    ai_runtime_cost = economics["total_cost"] + judge_cost_per_run
+    human_review_cost = review_cost_per_task * tasks
+    error_risk_cost = error_cost_per_failure * failed_tasks
+
+    margin = value - ai_runtime_cost - human_review_cost - error_risk_cost
+
+    return {
+        "value": value,
+        "ai_runtime_cost": ai_runtime_cost,
+        "human_review_cost": human_review_cost,
+        "error_risk_cost": error_risk_cost,
+        "margin": margin,
+        "profitable": margin > 0,
+    }
+
+
+
 
