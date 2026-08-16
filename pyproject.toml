@@ -27,3 +27,8 @@ build-backend = "uv_build"
 name = "microsoft-cfs"
 url = "https://packagefeedproxy.microsoft.io/pypi/simple"
 default = true
+
+[dependency-groups]
+viz = [
+    "matplotlib>=3.11.1",
+]
