@@ -15,3 +15,6 @@ wheels/
 
 # # Github Workflows
 # .github/workflows/agent-builtin-eval.yml
+
+# Archive
+archive/

@@ -1,46 +1,56 @@
-# Contoso Coffee AI Agent — Tokenomics Business Case & Economics Report
+# Contoso Coffee AI Agent — Tokenomics Business Case & Economics
 
 ## Executive Summary
 
 This project asks a practical business question:
 
-> **Can AI economically recover customer demand that a local coffee shop or restaurant is currently unable to serve?**
+> **Can AI economically recover customer demand that a local coffee shop is currently unable to serve?**
 
-The baseline is not necessarily:
-
-```text
-Human does the job for $X/hour
-vs.
-AI does the job for $Y/hour
-```
-
-For a busy local business, the real baseline may be:
+The scenario is simple:
 
 ```text
-Phone rings
-   ↓
-Staff is busy
-   ↓
-Nobody answers
-   ↓
+Customer has a menu question
+        ↓
+Staff is busy or unavailable
+        ↓
+Inquiry goes unanswered
+        ↓
 Customer gives up
-   ↓
-Revenue disappears
+        ↓
+Potential demand is lost
 ```
 
-This makes the project a **demand-recovery story**, not primarily a labor-replacement story.
-
-The current Contoso Coffee agent answers menu questions using Microsoft Foundry and Azure AI Search. That is enough to demonstrate tokenomics; a real ordering system is intentionally out of scope.
+The Contoso Coffee agent answers menu-related questions using Microsoft Foundry and Azure AI Search. The project does not need a real ordering system to demonstrate the economics. Instead, it measures agent quality and inference cost, then models how successfully served interactions could translate into recovered orders and contribution.
 
 The central thesis is:
 
 > **The goal is not to minimize token consumption. The goal is to maximize economically valuable outcomes per dollar of AI inference while preserving quality.**
 
+The full flow is:
+
+```text
+Unserved demand
+      ↓
+AI-addressable demand
+      ↓
+Measured agent quality
+      ↓
+Successfully served interactions
+      ↓
+Estimated conversion
+      ↓
+Recovered contribution
+      ↓
+AI inference cost
+      ↓
+AI Value Multiple
+```
+
 ---
 
-## 1. Business Problem
+## 1. Business Problem — Recovering Unserved Demand
 
-Coffee shops and restaurants receive repetitive questions such as:
+Coffee shops receive repetitive questions such as:
 
 - What drinks are available?
 - How much is a latte?
@@ -48,7 +58,7 @@ Coffee shops and restaurants receive repetitive questions such as:
 - Do you have anything caffeine-free?
 - Do you carry a specific menu item?
 
-During peak periods, some inquiries go unanswered.
+During peak periods, some inquiries may go unanswered.
 
 ```text
 Customer demand
@@ -59,16 +69,14 @@ Abandoned interaction
       ↓
 Potential order lost
       ↓
-$0 realized value
+$0 realized contribution
 ```
 
 The business question becomes:
 
-> **How much otherwise-lost demand can AI safely recover, and how much contribution does that recovered demand create relative to the cost of AI?**
+> **How much otherwise-lost demand can AI safely recover, and how much contribution can that recovered demand create relative to AI inference cost?**
 
----
-
-## 2. Current Agent Scope
+### Current agent scope
 
 ```text
 Customer question
@@ -82,32 +90,25 @@ Grounded menu information
 Response
 ```
 
-The agent already demonstrates:
+The current agent supports item/price lookup, filtering, budget math, semantic recommendations, abstention, hallucination resistance, and scope adherence.
 
-- item and price lookup,
-- budget filtering,
-- recommendations,
-- abstention when information is unavailable,
-- hallucination resistance,
-- scope adherence.
-
-A real ordering system is **not required** to prove the economics. The model can instead represent:
+A real order-processing system is intentionally out of scope. For this tokenomics model:
 
 ```text
 Successful interaction
       ↓
-Probability customer proceeds to order
+Probability customer proceeds to purchase
       ↓
-Estimated recovered demand
+Estimated recovered order
 ```
 
-This keeps the project focused on token economics rather than payments, POS integration, inventory, or fulfillment.
+is enough to model economic value.
 
 ---
 
-## 3. From Token Cost to Business Value
+## 2. From Tokens to Business Outcomes
 
-A basic AI dashboard reports:
+Token metrics alone stop too early:
 
 ```text
 Input tokens
@@ -116,9 +117,7 @@ Total tokens
 Inference cost
 ```
 
-Those metrics stop too early.
-
-The business-value chain is:
+The business cares about what those tokens produce:
 
 ```text
 TOKENS
@@ -127,14 +126,12 @@ AI COST
    ↓
 SUCCESSFUL INTERACTION
    ↓
-CUSTOMER INTENT PRESERVED
+RECOVERED ORDER OPPORTUNITY
    ↓
-POTENTIAL ORDER RECOVERED
-   ↓
-CONTRIBUTION RECOVERED
+RECOVERED CONTRIBUTION
 ```
 
-The better question is not:
+So the better question is not:
 
 > How many tokens did we consume?
 
@@ -142,38 +139,54 @@ It is:
 
 > **How much economically valuable demand did those tokens help recover?**
 
----
-
-## 4. Primary Metric — AI Value Multiple
-
-```text
-AI Value Multiple
-=
-Recovered Contribution
-÷
-AI Inference Cost
-```
-
-Example:
-
-```text
-Recovered monthly contribution     $2,381
-AI inference cost                     $25
-------------------------------------------
-AI Value Multiple                      94x
-```
-
-This does **not** claim a proven 94x production ROI.
-
-It means:
-
-> Under the stated assumptions, every $1 of AI inference supports approximately $94 of recovered contribution opportunity.
-
-The assumptions must always remain explicit and adjustable.
+The reusable measurement framework behind this progression is documented in [`token_to_value_ladder.md`](token_to_value_ladder.md).
 
 ---
 
-## 5. Illustrative Coffee-Shop Economics
+## 3. The Economics Model
+
+The model deliberately separates **measured AI performance** from **business assumptions**.
+
+### Measured by the system
+
+- token usage,
+- inference cost,
+- behavior success rate,
+- cost per successful resolution.
+
+### Assumed for the business scenario
+
+- missed contacts/day,
+- AI-eligible rate,
+- conversion rate,
+- average order value,
+- contribution margin.
+
+These combine as:
+
+```text
+Missed interactions
+      ↓ × AI-eligible rate
+AI-Addressable interactions
+      ↓ × measured success rate
+Successfully served interactions
+      ↓ × conversion rate
+Recovered orders
+      ↓ × average order value
+Recovered revenue
+      ↓ × contribution margin
+Recovered contribution
+```
+
+The key boundary is:
+
+> **AI performance is measured. Business outcomes are modeled from transparent assumptions.**
+
+Only a real pilot can validate actual conversion and contribution lift.
+
+---
+
+## 4. Illustrative Coffee-Shop Economics
 
 Assume:
 
@@ -184,140 +197,109 @@ Successful-resolution rate             70%
 Conversion after successful answer     30%
 Average order value                    $18
 Contribution margin                    35%
+Days/month                              30
 ```
 
-These are illustrative demo assumptions.
+These are illustrative assumptions, not claims about a real shop.
 
-### Addressable demand
-
-```text
-100 × 60% = 60 contacts/day
-```
-
-### Successfully served interactions
+### Demand funnel
 
 ```text
-60 × 70% = 42 successful interactions/day
-```
-
-### Estimated recovered orders
-
-```text
-42 × 30% = 12.6 orders/day
-```
-
-### Estimated recovered revenue
-
-```text
-12.6 × $18 = $226.80/day
-```
-
-### Estimated recovered contribution
-
-```text
-$226.80 × 35% = $79.38/day
-
-$79.38 × 30
-≈ $2,381/month
-```
-
----
-
-## 6. Add AI Inference Cost
-
-Suppose measured token usage and model pricing work out to an illustrative:
-
-```text
-AI cost per successful interaction = $0.02
-```
-
-Then:
-
-```text
-42 × $0.02 × 30
+100 missed contacts
+× 60% AI eligible
 =
-$25.20 AI inference cost/month
+60 addressable contacts/day
+
+60
+× 70% measured success
+=
+42 successfully served/day
+
+42
+× 30% conversion
+=
+12.6 recovered orders/day
 ```
 
-So:
+### Economics
 
 ```text
-Recovered contribution/month       ≈ $2,381
-AI inference cost/month            ≈    $25
--------------------------------------------
-AI Value Multiple                  ≈    94x
+12.6 orders
+× $18 AOV
+=
+$226.80 recovered revenue/day
+
+$226.80
+× 35% contribution margin
+=
+$79.38 recovered contribution/day
+
+$79.38
+× 30 days
+≈
+$2,381 recovered contribution/month
 ```
 
-The important relationship is:
-
-```text
-Measured AI behavior
-        +
-Transparent business assumptions
-        ↓
-Estimated economic value
-```
+Now compare that contribution with AI inference cost.
 
 ---
 
-## 7. Metric Ladder
+## 5. Primary Metric — AI Value Multiple
 
 ```text
-Cost per token
-      ↓
-Cost per interaction
-      ↓
-Cost per successful resolution
-      ↓
-Cost per recovered order
-      ↓
-Contribution per AI dollar
+AI Value Multiple
+=
+Recovered Contribution
+÷
+AI Inference Cost
 ```
 
-A business does not ultimately buy tokens.
+If measured model usage implies:
 
-It buys outcomes.
+```text
+AI inference cost/month = $25
+```
+
+then:
+
+```text
+Recovered contribution/month       $2,381
+AI inference cost/month                $25
+------------------------------------------
+AI Value Multiple                     ~94x
+```
+
+Interpretation:
+
+> Under the stated assumptions, every $1 of AI inference supports approximately $94 of modeled recovered contribution opportunity.
+
+This is **not** a claim of proven production ROI. It is a transparent economic model that can be inspected and stress-tested.
+
+### Break-even conversion
+
+A second useful metric is:
+
+> **How low can conversion fall before modeled recovered contribution no longer covers inference cost?**
+
+Conceptually:
+
+```text
+Break-even conversion rate
+=
+AI inference cost
+÷
+(successfully served interactions
+ × average order value
+ × contribution margin)
+```
+
+This is often more useful than defending one optimistic conversion assumption.
 
 ---
 
-## 8. Metrics to Track
+## 6. Why Quality Belongs in Tokenomics
 
-### AI / Operational
-- Average input tokens
-- Average output tokens
-- Total tokens
-- Inference cost
-- Latency
-- Search/tool usage
-
-### Quality
-- Behavior rubric pass rate
-- Scope adherence
-- Successful-resolution rate
-- Abstention quality
-- Hallucination rate
-- Retrieval/grounding quality
-
-### Business
-- Estimated recoverable interactions
-- Estimated recovered orders
-- Average order value
-- Contribution margin
-- Estimated recovered contribution
-
-### Tokenomics
-- Cost per interaction
-- Cost per successful resolution
-- Cost per recovered order
-- Value per 1K tokens
-- AI Value Multiple
-- Break-even conversion rate
-
----
-
-## 9. Quality Is More Important Than Cheapness
-
-> **Lower token cost does not automatically mean better economics.**
+A cheap agent is not automatically an economically good agent.
 
 | Metric | Agent A | Agent B |
 |---|---:|---:|
@@ -340,508 +322,201 @@ Recovered contribution = $1,600
 AI cost                = $18
 ```
 
-Agent B is cheaper, but Agent A creates substantially more business value.
+Agent B consumes fewer tokens, but Agent A creates more modeled business value.
 
 Therefore:
 
 > **Optimize token margins, not token consumption.**
 
-The objective is not:
+The relevant optimization target is:
 
 ```text
-fewest tokens
-```
-
-It is:
-
-```text
-highest valuable outcome
-per dollar of inference
-```
-
----
-
-## 10. Cost per Successful Resolution
-
-```text
-Cost per Successful Resolution
+quality
++
+successful outcomes
++
+efficient inference
 =
-Total AI inference cost
-÷
-Successful customer interactions
+stronger economics
 ```
 
-Example:
+Useful metrics therefore progress from:
 
 ```text
-$25 ÷ 1,260
-≈ $0.02 per successful resolution
+Cost per token
+      ↓
+Cost per interaction
+      ↓
+Cost per successful resolution
+      ↓
+Recovered contribution
+      ↓
+Contribution per AI dollar
 ```
-
-This answers:
-
-> **How much AI spending is required to produce one interaction that meets our quality bar?**
 
 ---
 
-## 11. Value per 1K Tokens
+## 7. Sensitivity, Evidence Boundaries, and the Dashboard
 
-```text
-Value per 1K Tokens
-=
-Recovered Contribution
-÷
-Total Tokens
-× 1,000
-```
+Business assumptions are uncertain, so the economics should not depend on one scenario.
 
-This can help compare prompt versions, model choices, context sizes, retrieval strategies, and tool-use patterns.
-
-It should remain secondary to business-level measures such as **contribution per AI dollar**.
-
----
-
-## 12. Break-Even Conversion Rate
-
-A strong business question is:
-
-> **How little conversion does the agent need to generate merely to pay for its inference cost?**
-
-Conceptually:
-
-```text
-Break-even conversion rate
-=
-AI cost
-÷
-(successfully served interactions
-   × average order value
-   × contribution margin)
-```
-
-Instead of arguing, “conversion will be 30%,” the demo can say:
-
-> **Here is the minimum conversion rate required for inference to break even. Anything above it creates positive contribution under these assumptions.**
-
----
-
-## 13. Sensitivity Analysis
-
-Do not depend on one assumption.
-
-| Scenario | Conversion Rate | Interpretation |
-|---|---:|---|
-| Conservative | 10% | Conservative recovery |
-| Base | 20% | Moderate recovery |
-| Optimistic | 30% | Strong recovery |
-
-Also vary:
+The current implementation allows scenario analysis across:
 
 - missed contacts/day,
 - AI-eligible rate,
-- successful-resolution rate,
+- conversion rate,
 - average order value,
 - contribution margin,
-- inference cost.
+- AI inference cost.
 
-The purpose is not to manufacture a large ROI number.
+It also supports inference-cost stress testing such as:
 
-It is to understand:
+```text
+Measured cost
+1x
+5x
+10x
+20x
+```
 
-> **Under what conditions does this system create economic value?**
+This helps answer:
 
----
+> What if customer conversion is much lower than expected?
 
-## 14. Measured vs Assumed vs Proven
+and:
 
-| Measured by AI System | Assumed for Demo | Validate in Real Pilot |
+> What if production inference cost is much higher than the current benchmark?
+
+### Measured vs. assumed vs. proven
+
+| Measured by the system | Assumed in the model | Validate in a real pilot |
 |---|---|---|
-| Tokens | Missed contacts | Actual missed demand |
+| Tokens | Missed contacts/day | Actual missed demand |
 | AI cost | AI-eligible rate | Incremental orders |
-| Latency | Conversion rate | Actual conversion |
-| Evaluation quality | Average order value | Actual AOV |
-| Scope adherence | Contribution margin | Contribution lift |
-| Resolution quality | — | Repeat behavior |
+| Behavior success rate | Conversion rate | Actual conversion lift |
+| Cost per successful resolution | Average order value | Actual AOV |
+| Quality/scope metrics | Contribution margin | Actual contribution lift |
 
-The demo should never confuse **modeled economics** with **proven production ROI**.
+The project can measure the first column, transparently model the second, and only a production pilot can establish the third.
+
+### Current implementation flow
+
+```text
+evaluation.py
+      ↓
+Measures quality + token cost
+      ↓
+tokenomics_history.jsonl
+      ↓
+business_economics.py
+      ↓
+Combines measurements with assumptions
+      ↓
+Markdown report + Streamlit dashboard
+```
+
+The Streamlit dashboard keeps measured AI metrics fixed while allowing business assumptions to change interactively. It includes:
+
+- Conservative / Base / Optimistic presets,
+- conversion sensitivity,
+- AI cost stress testing,
+- contribution-vs-AI-cost visualization,
+- historical Agent / Run comparison under the same business assumptions.
+
+Scenario exploration does **not** call the model again.
 
 ---
 
-## 15. Connecting Evaluation to Economics
+## 8. Demo Story and Decision Questions
+
+### Act 1 — Show the lost-demand problem
 
 ```text
-Regression dataset
+Customer inquiry
       ↓
-Foundry evaluators
+No response
       ↓
-Measured behavior quality
-      ↓
-Economic model
+Potential demand lost
 ```
 
-If behavior pass rate is 92%, the economics should not pretend that 100% of interactions create value.
+### Act 2 — Show that the agent is measured
 
-Evaluation answers:
-
-> **How much of the token spend actually produces acceptable behavior?**
-
-That makes evaluation directly relevant to tokenomics.
-
----
-
-## 16. Why Evaluation Is Part of Tokenomics
+Demonstrate representative menu questions, then show:
 
 ```text
-Cheap model
-   ↓
-Poorer answers
-   ↓
-Lower successful-resolution rate
-   ↓
-Lower economic value
-```
-
-versus:
-
-```text
-More expensive model
-   ↓
-Better answers
-   ↓
-Higher successful-resolution rate
-   ↓
-Higher economic value
-```
-
-Therefore:
-
-> **Token cost without quality context is incomplete.**
-
-The correct optimization target combines:
-
-```text
+Foundry evaluation
+      ↓
+behavior quality
+      ↓
 token usage
-+
-quality
-+
-business outcome
-```
-
----
-
-## 17. Questions We Should Keep Asking
-
-### Where is value leaking?
-- How many interactions go unanswered?
-- When does it happen?
-- Which requests are repetitive enough for AI?
-
-### How much can AI safely recover?
-- What percentage is AI-addressable?
-- What percentage does the agent resolve successfully?
-- Where should it abstain?
-- What is the cost of a wrong answer?
-
-### What is a successful interaction worth?
-- What percentage might proceed to purchase?
-- What is average order value?
-- What is contribution margin?
-
-### What does the intelligence cost?
-- Input/output tokens?
-- Search/tool calls?
-- Retries?
-- Cost per successful resolution?
-- Contribution per AI dollar?
-
----
-
-## 18. What Optimization Should Mean
-
-```text
-Token optimization
       ↓
-Cost optimization
+cost per successful resolution
+```
+
+### Act 3 — Show the economics
+
+```text
+Missed demand
       ↓
-Outcome optimization
+AI-addressable demand
       ↓
-Economic optimization
-```
-
-A naïve goal is:
-
-```text
-Reduce tokens
-```
-
-A better goal is:
-
-```text
-Maintain or improve quality
-while reducing cost per successful outcome
-```
-
-The business goal is:
-
-```text
-Maximize recovered contribution
-per dollar of AI inference
-```
-
----
-
-## 19. Suggested Demo Story
-
-### Act 1 — The problem
-
-> A coffee shop is overwhelmed at peak time. The phone rings while staff are making drinks and serving customers. Nobody answers. The baseline is not another employee doing the task; the baseline is lost demand worth $0.
-
-```text
-Phone rings
-   ↓
-No answer
-   ↓
-Lost demand
-```
-
-### Act 2 — The agent
-
-Demonstrate questions such as:
-
-```text
-How much is a Caramel Macchiato?
-What coffees are under $3?
-Which drinks are caffeine-free?
-Do you sell Pumpkin Spice Latte?
-```
-
-Show that the agent is grounded in Azure AI Search and that quality is measured rather than assumed.
-
-### Act 3 — The economics
-
-```text
-100 missed contacts
-       ↓
-60% AI-addressable
-       ↓
 measured agent quality
-       ↓
-successful interactions
-       ↓
-estimated conversion
-       ↓
+      ↓
+recovered orders
+      ↓
 recovered contribution
-       ↓
+      ↓
 AI Value Multiple
 ```
 
-Then change assumptions live:
+Then stress the assumptions live:
 
 ```text
-Conversion 30% → 10%
-Inference cost 1x → 2x
-Quality 95% → 80%
+Conversion 20% → 5%
+AI cost 1x → 10x
 ```
 
-and show how the economics change.
+This turns tokenomics into a **decision model**, not a billing dashboard.
+
+The recurring questions are:
+
+- How much demand currently goes unserved?
+- What share is suitable for AI?
+- What percentage of AI interactions meet the quality bar?
+- What does one successful resolution cost?
+- What contribution could recovered demand create?
+- What conversion rate is required to break even?
+- Does a cheaper model actually produce better economics?
+- Are additional tokens buying enough quality to justify their cost?
 
 ---
 
-## 20. Strongest Comparison — Agent A vs Agent B
+## Final Business Thesis
 
-Do not ask:
+The core business question is:
 
-> Which agent uses fewer tokens?
+> **Can AI economically recover demand that the business is currently unable to serve?**
 
-Ask:
-
-> **Which agent produces stronger economics?**
-
-```text
-Agent A
-More tokens
-Higher quality
-Higher resolution
-Higher recovered contribution
-
-Agent B
-Fewer tokens
-Lower quality
-Lower resolution
-Lower recovered contribution
-```
-
-The lesson:
-
-> **A more expensive agent can be economically superior if additional quality creates more value than the extra inference cost.**
-
-That is the difference between **token-consumption optimization** and **token-margin optimization**.
-
----
-
-## 21. Why We Do Not Need Ordering Logic
-
-A real ordering system adds:
-
-- payments,
-- POS integration,
-- inventory,
-- order state,
-- fulfillment,
-- sensitive customer data.
-
-None of that is needed to answer the tokenomics question.
-
-For this project:
-
-```text
-Successful menu conversation
-       ↓
-modeled probability of purchase
-       ↓
-estimated economic outcome
-```
-
-is sufficient.
-
----
-
-## 22. Proposed Economics Report Output
-
-```text
-CONTOSO COFFEE — AI ECONOMICS
-
-MEASURED AI PERFORMANCE
-──────────────────────────────────────
-Evaluation cases                    20
-Behavior pass rate                 95%
-Scope adherence                   100%
-Average input tokens               ...
-Average output tokens              ...
-Average inference cost             ...
-Cost / successful resolution       ...
-
-BUSINESS ASSUMPTIONS
-──────────────────────────────────────
-Missed contacts / day              100
-AI eligible                         60%
-Conversion                          20%
-Average order                       $18
-Contribution margin                 35%
-
-ESTIMATED ECONOMICS
-──────────────────────────────────────
-Addressable contacts / day          ...
-Successful interactions / day       ...
-Estimated recovered orders / day    ...
-Recovered revenue / month           ...
-Recovered contribution / month      ...
-AI inference cost / month            ...
-AI Value Multiple                    ...x
-
-SENSITIVITY
-──────────────────────────────────────
-10% conversion                       ...
-20% conversion                       ...
-30% conversion                       ...
-
-BREAK-EVEN
-──────────────────────────────────────
-Minimum conversion required          ...%
-```
-
----
-
-## 23. How the Existing Agent Lifecycle Connects to Economics
-
-```text
-Evaluation
-   ↓
-Are our tokens producing correct behavior?
-
-Optimizer
-   ↓
-Can we produce equal or better behavior more efficiently?
-
-Monitoring
-   ↓
-Are quality, latency, and cost staying healthy?
-
-Regression gates
-   ↓
-Did a proposed change damage value-producing behavior?
-
-Tokenomics
-   ↓
-Is the entire system economically worth operating?
-```
-
-Tokenomics gives the Agent Development Lifecycle a common business objective.
-
----
-
-## 24. Final Business Thesis
-
-The business case is not:
-
-> AI is cheaper than hiring another employee.
-
-The stronger thesis is:
-
-> **AI may economically serve demand that the business currently cannot serve at all.**
-
-The tokenomics question is not:
-
-> How cheaply can we generate an answer?
-
-It is:
+The core tokenomics question is:
 
 > **How much high-quality economic value can we create for every dollar of AI inference?**
 
-And the optimization goal becomes:
-
-> **Strong quality + recovered contribution + efficient inference = healthy token margins.**
-
----
-
-## Recommended Project Scope
-
-Keep the next tokenomics slice focused on:
+And the project tells one continuous story:
 
 ```text
-Measure token usage
-        ↓
-Measure agent quality
-        ↓
-Define transparent business assumptions
-        ↓
-Calculate recovered contribution
-        ↓
-Calculate AI inference cost
-        ↓
-Calculate AI Value Multiple
-        ↓
-Run bear/base/bull sensitivity
-        ↓
-Calculate break-even conversion
-```
-
-Do **not** build a real ordering system unless it later serves a separate learning objective.
-
-The business case and economics belong together because they form one continuous story:
-
-```text
-Business problem
+Unserved demand
       ↓
-Lost demand
+AI interaction
       ↓
-AI intervention
+Measured quality
       ↓
-Measured quality and cost
+Measured inference cost
       ↓
 Modeled recovered contribution
       ↓
-Token economics
+AI Value Multiple
       ↓
 Business decision
 ```
+
+That is the intended scope of this project: **connect agent quality to business outcomes, and quantify those outcomes against token spend.**
