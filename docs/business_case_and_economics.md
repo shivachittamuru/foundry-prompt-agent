@@ -402,7 +402,7 @@ The project can measure the first column, transparently model the second, and on
 ### Current implementation flow
 
 ```text
-evaluation.py
+scripts/run_evaluation.py
       ↓
 Measures quality + token cost
       ↓

@@ -103,20 +103,25 @@ Only the parts that matter for understanding the flow:
 
 | Path | Purpose |
 | --- | --- |
-| [src/foundry_prompt_agent/](src/foundry_prompt_agent/) | Python package around the persisted Foundry agent. |
+| [src/foundry_prompt_agent/](src/foundry_prompt_agent/) | Reusable Python package around the persisted Foundry agent. |
 | [src/foundry_prompt_agent/agent.py](src/foundry_prompt_agent/agent.py) | Invokes the existing Prompt Agent and captures token usage returned by the Responses API. |
 | [src/foundry_prompt_agent/tokenomics.py](src/foundry_prompt_agent/tokenomics.py) | Generic token-cost, efficiency, and effectiveness calculations. |
 | [src/foundry_prompt_agent/business_economics.py](src/foundry_prompt_agent/business_economics.py) | Coffee-shop demand-recovery economics: recovered orders, contribution, AI Value Multiple, and break-even conversion. |
-| [evaluation.py](evaluation.py) | Main evaluation harness: runs the agent, measures token usage, runs Foundry evaluators, enforces quality gates, and persists run history. |
+| [src/foundry_prompt_agent/foundry_eval.py](src/foundry_prompt_agent/foundry_eval.py) | Foundry evaluation mechanics: dataset upload, evaluation run, polling, pass rates, and the quality gate. |
+| [src/foundry_prompt_agent/history.py](src/foundry_prompt_agent/history.py) | Reads and appends the tokenomics experiment ledger, ignoring rows from older schemas. |
+| [scripts/run_evaluation.py](scripts/run_evaluation.py) | Main evaluation entrypoint: runs the agent, measures token usage, runs Foundry evaluators, enforces quality gates, and persists run history. |
+| [scripts/generate_economics_report.py](scripts/generate_economics_report.py) | Generates a Markdown economics report from the latest measured run without calling the model again. |
+| [scripts/plot_tokenomics.py](scripts/plot_tokenomics.py) | Plots tokenomics trends across historical evaluation runs. |
+| [apps/dashboard.py](apps/dashboard.py) | Interactive Streamlit dashboard for scenario analysis and run/agent comparison. |
 | [economics/business_assumptions.yaml](economics/business_assumptions.yaml) | Explicit business assumptions used by the economics model. |
 | [evals/](evals/) | Curated regression datasets, generated responses, and tokenomics run history. |
 | [evals/tokenomics_history.jsonl](evals/tokenomics_history.jsonl) | Append-only experiment ledger containing measured AI metrics, assumptions, and modeled economics. |
-| [generate_economics_report.py](generate_economics_report.py) | Generates a Markdown economics report from the latest measured run without calling the model again. |
-| [dashboard.py](dashboard.py) | Interactive Streamlit dashboard for scenario analysis and run/agent comparison. |
-| [plot_tokenomics.py](plot_tokenomics.py) | Plots tokenomics trends across historical evaluation runs. |
+| [tests/](tests/) | Unit tests for the pure tokenomics, economics, and history logic. |
 | [data/contoso.json](data/contoso.json) | Contoso Coffee menu that backs the Azure AI Search index. |
 | [docs/](docs/) | Setup, evaluation, monitoring, automation, tokenomics framework, and business-case documentation. |
 | [.github/workflows/](.github/workflows/) | CI regression workflows. |
+
+All commands in this README are run from the repository root.
 
 ---
 
@@ -148,6 +153,12 @@ az login
 
 # create your local env file and fill in the values
 cp .env.example .env
+```
+
+Verify the pure tokenomics, economics, and history logic at any time:
+
+```bash
+uv run pytest -q
 ```
 
 Populate `.env` with your Foundry project details:
@@ -199,10 +210,10 @@ This confirms the Foundry endpoint, agent reference, Azure authentication, and r
 ## Running evaluations
 
 ```bash
-uv run evaluation.py
+uv run scripts/run_evaluation.py
 ```
 
-[evaluation.py](evaluation.py) performs the core measurement loop:
+[scripts/run_evaluation.py](scripts/run_evaluation.py) performs the core measurement loop:
 
 1. Loads the curated regression dataset from `evals/`.
 2. Invokes the persisted agent for every case.
@@ -322,7 +333,7 @@ This keeps the economics transparent and testable.
 Once at least one evaluation run has been recorded:
 
 ```bash
-uv run generate_economics_report.py
+uv run scripts/generate_economics_report.py
 ```
 
 This does **not** rerun the agent.
@@ -349,11 +360,11 @@ The generated report summarizes:
 The important separation is:
 
 ```text
-evaluation.py
+scripts/run_evaluation.py
 =
 measure the AI
 
-generate_economics_report.py
+scripts/generate_economics_report.py
 =
 analyze the economics of that measurement
 ```
@@ -367,7 +378,7 @@ Business sensitivity analysis therefore costs no additional inference tokens.
 For interactive scenario exploration:
 
 ```bash
-uv run streamlit run dashboard.py
+uv run streamlit run apps/dashboard.py
 ```
 
 The Streamlit dashboard reads the same measured history and performs all scenario modeling locally.
@@ -462,7 +473,7 @@ This enables later comparisons to answer:
 Run-history visualizations can be regenerated with:
 
 ```bash
-uv run plot_tokenomics.py
+uv run scripts/plot_tokenomics.py
 ```
 
 The most useful trend metrics are:
@@ -479,7 +490,7 @@ The most useful trend metrics are:
 
 Workflows under [.github/workflows/](.github/workflows/) automate regression evaluation.
 
-The primary workflow runs the repository's own `evaluation.py`, giving the project control over:
+The primary workflow runs the repository's own `scripts/run_evaluation.py`, giving the project control over:
 
 - dependency versions,
 - regression dataset,
@@ -499,7 +510,7 @@ OIDC authentication to Azure
         ↓
 uv sync --locked
         ↓
-evaluation.py
+scripts/run_evaluation.py
         ↓
 Foundry evaluation
         ↓

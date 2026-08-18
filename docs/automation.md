@@ -74,7 +74,7 @@ Authenticate to Azure
         ↓
 Install locked Python environment
         ↓
-Run evaluation.py
+Run scripts/run_evaluation.py
         ↓
 Invoke persisted Foundry Prompt Agent
         ↓
@@ -114,7 +114,7 @@ The preferred project shape is therefore:
 ```text
 GitHub Actions
     ↓
-our evaluation.py
+our scripts/run_evaluation.py
     ↓
 our dataset
     ↓
@@ -157,7 +157,7 @@ Install Python
         ↓
 uv sync --locked
         ↓
-uv run --locked evaluation.py
+uv run --locked scripts/run_evaluation.py
 ```
 
 Example workflow:
@@ -173,7 +173,7 @@ on:
     paths:
       - "src/**"
       - "evals/**"
-      - "evaluation.py"
+      - "scripts/**"
       - ".github/workflows/agent-eval.yml"
 
 permissions:
@@ -216,7 +216,7 @@ jobs:
         run: uv sync --locked
 
       - name: Run agent regression evaluation
-        run: uv run --locked evaluation.py
+        run: uv run --locked scripts/run_evaluation.py
 ```
 
 ---

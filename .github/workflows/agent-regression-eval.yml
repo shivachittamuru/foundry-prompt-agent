@@ -8,6 +8,7 @@ on:
   #   paths:
   #     - "evals/**"
   #     - "src/**"
+  #     - "scripts/**"
   #     - ".github/workflows/agent-regression-eval.yml"
 
 permissions:
@@ -51,4 +52,4 @@ jobs:
         run: uv sync --locked
 
       - name: Run agent regression evaluation
-        run: uv run --locked evaluation.py
+        run: uv run --locked scripts/run_evaluation.py

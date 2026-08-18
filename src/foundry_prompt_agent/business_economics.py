@@ -125,6 +125,51 @@ def summarize_business_economics(
     }
 
 
+def scenario_from_measured_run(
+    measured: dict,
+    assumptions: dict,
+    *,
+    cost_stress_multiplier: float = 1.0,
+) -> dict:
+    """Combine one measured evaluation run with one set of business assumptions.
+
+    ``measured`` is a history row (or any mapping with ``success_rate`` and
+    ``cost_per_task``); ``assumptions`` may be the YAML block, a history row, or
+    dashboard controls, since all three carry the same assumption keys.
+    """
+    return summarize_business_economics(
+        missed_contacts_per_day=assumptions["missed_contacts_per_day"],
+        ai_eligible_rate=assumptions["ai_eligible_rate"],
+        success_rate=measured["success_rate"],
+        conversion_rate=assumptions["conversion_rate"],
+        average_order_value_usd=assumptions["average_order_value_usd"],
+        contribution_margin=assumptions["contribution_margin"],
+        cost_per_task_usd=measured["cost_per_task"] * cost_stress_multiplier,
+        days_per_month=assumptions["days_per_month"],
+    )
+
+
+def conversion_sensitivity(
+    measured: dict,
+    assumptions: dict,
+    conversion_rates: list[float],
+    *,
+    cost_stress_multiplier: float = 1.0,
+) -> list[dict]:
+    """Vary only the conversion rate while holding the measured run fixed."""
+    return [
+        {
+            "conversion_rate": conversion_rate,
+            **scenario_from_measured_run(
+                measured,
+                {**assumptions, "conversion_rate": conversion_rate},
+                cost_stress_multiplier=cost_stress_multiplier,
+            ),
+        }
+        for conversion_rate in conversion_rates
+    ]
+
+
 def _validate_rate(name: str, value: float) -> None:
     """Validate a decimal rate such as 0.60 or 0.35."""
     if not 0 <= value <= 1:

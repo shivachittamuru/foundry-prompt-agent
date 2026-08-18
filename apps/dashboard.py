@@ -1,7 +1,7 @@
 """Interactive token-economics dashboard for the Contoso Coffee agent.
 
-Run:
-    uv run streamlit run dashboard.py
+Run from the repository root:
+    uv run streamlit run apps/dashboard.py
 
 The dashboard never calls the agent or Foundry. It reads measured evaluation
 runs from evals/tokenomics_history.jsonl and recomputes business scenarios
@@ -11,32 +11,16 @@ locally with summarize_business_economics().
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.foundry_prompt_agent.business_economics import (
-    summarize_business_economics,
+from foundry_prompt_agent import history
+from foundry_prompt_agent.business_economics import (
+    conversion_sensitivity,
+    scenario_from_measured_run,
 )
 
-
-HISTORY_PATH = Path("evals/tokenomics_history.jsonl")
-
-REQUIRED_HISTORY_FIELDS = {
-    "run_id",
-    "success_rate",
-    "tokens_per_task",
-    "cost_per_task",
-    "cost_per_success",
-    "missed_contacts_per_day",
-    "ai_eligible_rate",
-    "conversion_rate",
-    "average_order_value_usd",
-    "contribution_margin",
-    "days_per_month",
-    "ai_value_multiple",
-}
 
 PRESETS = {
     "Conservative": {
@@ -64,31 +48,6 @@ PRESETS = {
         "cost_stress_multiplier": 1.0,
     },
 }
-
-
-def load_business_runs(path: Path) -> list[dict]:
-    """Load history rows produced by the current business-economics model."""
-    if not path.exists():
-        raise FileNotFoundError(
-            f"{path} does not exist. Run `uv run evaluation.py` first."
-        )
-
-    with path.open("r", encoding="utf-8") as file:
-        records = [json.loads(line) for line in file if line.strip()]
-
-    compatible = [
-        record
-        for record in records
-        if REQUIRED_HISTORY_FIELDS.issubset(record)
-    ]
-
-    if not compatible:
-        raise RuntimeError(
-            "No compatible business-economics history records were found. "
-            "Run the updated `evaluation.py` first."
-        )
-
-    return compatible
 
 
 def money(value: float, digits: int = 2) -> str:
@@ -136,29 +95,12 @@ def reset_to_latest(latest: dict) -> None:
     st.session_state["cost_stress_multiplier"] = 1.0
 
 
-def calculate_scenario(
-    measured: dict,
-    *,
-    missed_contacts_per_day: float,
-    ai_eligible_rate: float,
-    conversion_rate: float,
-    average_order_value_usd: float,
-    contribution_margin: float,
-    days_per_month: int,
-    cost_stress_multiplier: float,
-) -> dict:
-    """Combine one measured AI run with one common business scenario."""
-    return summarize_business_economics(
-        missed_contacts_per_day=missed_contacts_per_day,
-        ai_eligible_rate=ai_eligible_rate,
-        success_rate=measured["success_rate"],
-        conversion_rate=conversion_rate,
-        average_order_value_usd=average_order_value_usd,
-        contribution_margin=contribution_margin,
-        cost_per_task_usd=(
-            measured["cost_per_task"] * cost_stress_multiplier
-        ),
-        days_per_month=days_per_month,
+def calculate_scenario(measured: dict, controls: dict) -> dict:
+    """Combine one measured AI run with the current sidebar scenario."""
+    return scenario_from_measured_run(
+        measured,
+        controls,
+        cost_stress_multiplier=controls["cost_stress_multiplier"],
     )
 
 
@@ -190,33 +132,22 @@ def contribution_vs_cost_chart(scenario: dict) -> go.Figure:
     return fig
 
 
-def conversion_sensitivity_chart(
-    measured: dict,
-    *,
-    missed_contacts_per_day: float,
-    ai_eligible_rate: float,
-    average_order_value_usd: float,
-    contribution_margin: float,
-    days_per_month: int,
-    cost_stress_multiplier: float,
-    selected_conversion_rate: float,
-) -> go.Figure:
+def conversion_sensitivity_chart(measured: dict, controls: dict) -> go.Figure:
     """Vary only conversion while holding the measured AI run fixed."""
     conversion_rates = [index / 100 for index in range(0, 51)]
-    value_multiples = []
 
-    for rate in conversion_rates:
-        result = calculate_scenario(
-            measured,
-            missed_contacts_per_day=missed_contacts_per_day,
-            ai_eligible_rate=ai_eligible_rate,
-            conversion_rate=rate,
-            average_order_value_usd=average_order_value_usd,
-            contribution_margin=contribution_margin,
-            days_per_month=days_per_month,
-            cost_stress_multiplier=cost_stress_multiplier,
-        )
-        value_multiples.append(result["ai_value_multiple"])
+    scenarios = conversion_sensitivity(
+        measured,
+        controls,
+        conversion_rates,
+        cost_stress_multiplier=controls["cost_stress_multiplier"],
+    )
+
+    value_multiples = [
+        scenario["ai_value_multiple"] for scenario in scenarios
+    ]
+
+    selected_conversion_rate = controls["conversion_rate"]
 
     fig = go.Figure()
     fig.add_trace(
@@ -473,7 +404,7 @@ def render_business_economics(latest: dict, controls: dict) -> None:
 
     st.subheader("Demand-Recovery Funnel")
 
-    scenario = calculate_scenario(latest, **controls)
+    scenario = calculate_scenario(latest, controls)
 
     cols = st.columns(4)
     cols[0].metric(
@@ -549,16 +480,7 @@ def render_business_economics(latest: dict, controls: dict) -> None:
 
     with right:
         st.plotly_chart(
-            conversion_sensitivity_chart(
-                latest,
-                missed_contacts_per_day=controls["missed_contacts_per_day"],
-                ai_eligible_rate=controls["ai_eligible_rate"],
-                average_order_value_usd=controls["average_order_value_usd"],
-                contribution_margin=controls["contribution_margin"],
-                days_per_month=controls["days_per_month"],
-                cost_stress_multiplier=controls["cost_stress_multiplier"],
-                selected_conversion_rate=controls["conversion_rate"],
-            ),
+            conversion_sensitivity_chart(latest, controls),
             width="stretch",
         )
 
@@ -617,8 +539,8 @@ def render_agent_comparison(runs: list[dict], controls: dict) -> None:
     if len(runs) < 2:
         st.info(
             "At least two compatible business-economics runs are needed for "
-            "comparison. Run `uv run evaluation.py` again after changing an "
-            "agent, prompt, model, or configuration."
+            "comparison. Run `uv run scripts/run_evaluation.py` again after "
+            "changing an agent, prompt, model, or configuration."
         )
         return
 
@@ -641,8 +563,8 @@ def render_agent_comparison(runs: list[dict], controls: dict) -> None:
     run_a = runs[selected_a]
     run_b = runs[selected_b]
 
-    scenario_a = calculate_scenario(run_a, **controls)
-    scenario_b = calculate_scenario(run_b, **controls)
+    scenario_a = calculate_scenario(run_a, controls)
+    scenario_b = calculate_scenario(run_b, controls)
 
     st.caption(
         "Both runs below use the current sidebar assumptions and the same AI "
@@ -802,7 +724,7 @@ def main() -> None:
     )
 
     try:
-        runs = load_business_runs(HISTORY_PATH)
+        runs = history.load_business_runs()
     except (FileNotFoundError, RuntimeError, json.JSONDecodeError) as exc:
         st.error(str(exc))
         st.stop()

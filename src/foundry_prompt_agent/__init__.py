@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from foundry-prompt-agent!")
+"""Reusable modules for the Contoso Coffee Foundry Prompt Agent project."""

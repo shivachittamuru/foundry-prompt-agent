@@ -509,7 +509,7 @@ Therefore:
 The orchestration lives in:
 
 ```text
-evaluation.py
+scripts/run_evaluation.py
 ```
 
 It connects:

@@ -1,6 +1,6 @@
 # Contoso Coffee — Token Economics Report
 
-Generated from evaluation run `20260818083925`.
+Generated from evaluation run `20260818204234`.
 
 > This report combines measured AI performance with explicit business assumptions.
 > Business outcomes are modeled estimates, not proven production revenue.
@@ -21,12 +21,12 @@ The primary economics metric is:
 For this run:
 
 - Behavior success rate: **90.0%**
-- Cost per interaction: **$0.007420**
-- Cost per successful resolution: **$0.008245**
+- Cost per interaction: **$0.008022**
+- Cost per successful resolution: **$0.008914**
 - Estimated recovered contribution/month: **$1,701.00**
-- Estimated AI inference cost/month: **$13.36**
-- AI Value Multiple: **127.4x**
-- Break-even conversion rate: **0.24%**
+- Estimated AI inference cost/month: **$14.44**
+- AI Value Multiple: **117.8x**
+- Break-even conversion rate: **0.25%**
 
 ---
 
@@ -38,9 +38,9 @@ These values came from the actual agent and Foundry evaluation run.
 |---|---:|
 | Evaluation cases | 10 |
 | Behavior success rate | 90.0% |
-| Tokens per interaction | 2,244.5 |
-| Cost per interaction | $0.007420 |
-| Cost per successful resolution | $0.008245 |
+| Tokens per interaction | 2,417.3 |
+| Cost per interaction | $0.008022 |
+| Cost per successful resolution | $0.008914 |
 
 These values are **measured**, not business assumptions.
 
@@ -76,3 +76,20 @@ Successfully served
           ↓
 Estimated recovered orders
         16.2
+```
+
+---
+
+## 4. Conversion Sensitivity
+
+The measured AI run is held fixed and only the conversion assumption varies.
+
+| Conversion rate | Recovered contribution/month | AI inference cost/month | AI Value Multiple |
+|---|---:|---:|---:|
+| 5% | $283.50 | $14.44 | 19.6x |
+| 10% | $567.00 | $14.44 | 39.3x |
+| 20% | $1,134.00 | $14.44 | 78.5x |
+| 30% | $1,701.00 | $14.44 | 117.8x |
+
+Break-even for this run occurs at a conversion rate of
+**0.25%**.

@@ -169,7 +169,7 @@ If the agent answers the espresso question without searching, or invents a black
 
 ## Step 9: Register the custom evaluators
 
-[evaluation.py](../evaluation.py) references two custom evaluators by name, `contoso_behavior_rubric` and `contoso_scope_adherence`. These must be registered in the same Foundry project, otherwise the evaluation run fails before producing scores. See [docs/evaluation.md](evaluation.md) for what each evaluator checks and why custom rubrics were chosen over built-in ones.
+[scripts/run_evaluation.py](../scripts/run_evaluation.py) references two custom evaluators by name, `contoso_behavior_rubric` and `contoso_scope_adherence`. These must be registered in the same Foundry project, otherwise the evaluation run fails before producing scores. See [docs/evaluation.md](evaluation.md) for what each evaluator checks and why custom rubrics were chosen over built-in ones.
 
 ## Troubleshooting
 
@@ -183,4 +183,4 @@ If the agent answers the espresso question without searching, or invents a black
 
 ## Next steps
 
-With the agent running, continue to [docs/evaluation.md](evaluation.md) to understand the dataset and evaluator design, then run `uv run evaluation.py` to produce your first baseline.
+With the agent running, continue to [docs/evaluation.md](evaluation.md) to understand the dataset and evaluator design, then run `uv run scripts/run_evaluation.py` to produce your first baseline.
