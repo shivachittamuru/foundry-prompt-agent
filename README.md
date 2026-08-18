@@ -233,6 +233,9 @@ uv run scripts/run_evaluation.py
 9. Appends the run to `evals/tokenomics_history.jsonl`.
 10. Enforces the CI quality thresholds and exits non-zero on regression.
 
+Only step 10 can fail the build. Behavior and scope pass rates are the gates; the
+business economics are recorded for analysis, never enforced.
+
 A Foundry report URL is printed for diagnosis.
 
 See [docs/evaluation.md](docs/evaluation.md) for the evaluation design and evaluator rationale.
@@ -314,15 +317,18 @@ AI Inference Cost
 
 The purpose is not to claim a precise production ROI from a pet-project dataset.
 
-Instead, the project clearly separates:
+Instead, the project keeps three categories strictly separate:
 
-| Measured | Assumed | Validate in a real pilot |
-| --- | --- | --- |
-| Token usage | Missed contacts/day | Actual missed demand |
-| AI inference cost | AI-eligible rate | Incremental orders |
-| Behavior success rate | Conversion rate | Actual conversion lift |
-| Cost per successful resolution | Average order value | Actual AOV |
-| Quality/scope metrics | Contribution margin | Actual contribution lift |
+```text
+Measured   token usage, inference cost, behavior success rate,
+           cost per successful resolution
+
+Assumed    missed contacts/day, AI-eligible rate, conversion rate,
+           average order value, contribution margin
+
+Unproven   actual recovered demand, incremental orders, and conversion
+           lift, which only a real pilot can establish
+```
 
 This keeps the economics transparent and testable.
 
@@ -385,58 +391,15 @@ The Streamlit dashboard reads the same measured history and performs all scenari
 
 ### Business Economics tab
 
-The dashboard keeps measured AI metrics fixed:
+Measured AI metrics stay fixed — behavior success rate, tokens per interaction, measured cost per interaction, and cost per successful resolution. The sidebar changes only assumptions: missed contacts/day, AI-eligible rate, conversion rate, average order value, contribution margin, and an AI cost stress multiplier.
 
-```text
-Behavior success rate
-Tokens / interaction
-Measured cost / interaction
-Cost / successful resolution
-```
-
-and allows interactive changes to:
-
-```text
-Missed contacts/day
-AI-eligible rate
-Conversion rate
-Average order value
-Contribution margin
-AI cost stress multiplier
-```
-
-The dashboard updates:
-
-- AI-addressable interactions,
-- successfully served interactions,
-- estimated recovered orders,
-- recovered revenue,
-- recovered contribution,
-- monthly AI inference cost,
-- AI Value Multiple,
-- break-even conversion rate.
-
-It also includes:
-
-- **Conservative / Base / Optimistic presets**,
-- a contribution-vs-AI-cost visualization,
-- conversion-sensitivity analysis,
-- AI cost stress testing.
+The funnel, recovered revenue and contribution, monthly AI inference cost, AI Value Multiple, and break-even conversion recalculate on every change. **Conservative / Base / Optimistic** presets jump between coherent scenarios.
 
 The cost-stress control deliberately preserves the measured inference cost and models scenarios such as `5x`, `10x`, or `20x` production cost rather than overwriting the measurement.
 
 ### Agent / Run Comparison tab
 
-Historical evaluation runs can be compared under the **same business assumptions**.
-
-The comparison includes:
-
-- tokens per interaction,
-- measured cost per interaction,
-- behavior quality,
-- cost per successful resolution,
-- AI Value Multiple,
-- break-even conversion.
+Two historical evaluation runs are compared under the **same business assumptions**, so quality and inference cost are the only variables: tokens per interaction, measured cost per interaction, behavior quality, cost per successful resolution, AI Value Multiple, and break-even conversion.
 
 This demonstrates a core tokenomics lesson:
 

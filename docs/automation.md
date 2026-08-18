@@ -78,7 +78,7 @@ Run scripts/run_evaluation.py
         ↓
 Invoke persisted Foundry Prompt Agent
         ↓
-Evaluate contoso_agent_eval_v2.jsonl
+Evaluate contoso_agent_eval_v3.jsonl
         ↓
 Check quality thresholds
         ↓
@@ -313,7 +313,7 @@ No Azure client secret is required when OIDC federation is used.
 The source-of-truth regression specification lives in Git:
 
 ```text
-evals/contoso_agent_eval_v2.jsonl
+evals/contoso_agent_eval_v3.jsonl
 ```
 
 It captures known product requirements such as:
@@ -331,18 +331,20 @@ It captures known product requirements such as:
 Important distinction:
 
 ```text
-contoso_agent_eval_v2.jsonl
+contoso_agent_eval_v3.jsonl
         ↓
 Golden regression specification
         ↓
 Version-controlled in Git
 
-results_v2.jsonl
+results_v3.jsonl
         ↓
 Fresh responses from one execution
         ↓
 Evaluation evidence
 ```
+
+Earlier dataset versions remain in `evals/` as a record of how the benchmark grew.
 
 Git versions the benchmark.
 
@@ -402,6 +404,8 @@ Example policy:
 contoso_behavior_rubric >= 0.90
 contoso_scope_adherence >= 1.00
 ```
+
+The same run also measures token cost and appends the modeled business economics to `evals/tokenomics_history.jsonl`. Those economics are deliberately **not** gated: they rest on business assumptions, and a build should fail on measured quality regressions only.
 
 Conceptually:
 

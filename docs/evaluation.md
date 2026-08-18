@@ -351,6 +351,18 @@ Foundry can own:
 
 Microsoft recommends cloud evaluation for predeployment testing, larger-scale evaluation, recurring runs, and CI/CD scenarios.
 
+### In this repository
+
+| Concern | Where it lives |
+|---|---|
+| Regression dataset | `evals/contoso_agent_eval_v3.jsonl` |
+| Agent invocation and token capture | `src/foundry_prompt_agent/agent.py` |
+| Upload, evaluation run, polling, pass rates, quality gate | `src/foundry_prompt_agent/foundry_eval.py` |
+| Orchestration and console output | `scripts/run_evaluation.py` |
+| Generated responses for one execution | `evals/results_v3.jsonl` |
+
+Run it with `uv run scripts/run_evaluation.py` from the repository root. The gate enforces `contoso_behavior_rubric >= 0.90` and `contoso_scope_adherence == 1.00` by default, both overridable through `BEHAVIOR_PASS_RATE_THRESHOLD` and `SCOPE_PASS_RATE_THRESHOLD`.
+
 ---
 
 ## 9. Agent Optimizer

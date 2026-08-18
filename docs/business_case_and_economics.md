@@ -188,19 +188,20 @@ Only a real pilot can validate actual conversion and contribution lift.
 
 ## 4. Illustrative Coffee-Shop Economics
 
-Assume:
+The assumptions below are the ones shipped in [`economics/business_assumptions.yaml`](../economics/business_assumptions.yaml), combined with a success rate and inference cost of the kind an evaluation run actually produces:
 
 ```text
 Missed customer contacts/day          100
 AI-eligible contacts                   60%
-Successful-resolution rate             70%
+Successful-resolution rate             90%   (measured)
 Conversion after successful answer     30%
-Average order value                    $18
+Average order value                    $10
 Contribution margin                    35%
 Days/month                              30
+Cost per interaction               $0.0074   (measured)
 ```
 
-These are illustrative assumptions, not claims about a real shop.
+The business inputs are illustrative assumptions, not claims about a real shop. The two marked *measured* come from the evaluation run and change with every agent version.
 
 ### Demand funnel
 
@@ -211,33 +212,33 @@ These are illustrative assumptions, not claims about a real shop.
 60 addressable contacts/day
 
 60
-× 70% measured success
+× 90% measured success
 =
-42 successfully served/day
+54 successfully served/day
 
-42
+54
 × 30% conversion
 =
-12.6 recovered orders/day
+16.2 recovered orders/day
 ```
 
 ### Economics
 
 ```text
-12.6 orders
-× $18 AOV
+16.2 orders
+× $10 AOV
 =
-$226.80 recovered revenue/day
+$162.00 recovered revenue/day
 
-$226.80
+$162.00
 × 35% contribution margin
 =
-$79.38 recovered contribution/day
+$56.70 recovered contribution/day
 
-$79.38
+$56.70
 × 30 days
-≈
-$2,381 recovered contribution/month
+=
+$1,701 recovered contribution/month
 ```
 
 Now compare that contribution with AI inference cost.
@@ -254,26 +255,28 @@ Recovered Contribution
 AI Inference Cost
 ```
 
-If measured model usage implies:
+The business pays for every AI-addressable interaction, not only the successful ones:
 
 ```text
-AI inference cost/month = $25
+60 addressable/day × 30 days × $0.0074
+=
+$13.36 AI inference cost/month
 ```
 
-then:
+So:
 
 ```text
-Recovered contribution/month       $2,381
-AI inference cost/month                $25
+Recovered contribution/month       $1,701
+AI inference cost/month               $13
 ------------------------------------------
-AI Value Multiple                     ~94x
+AI Value Multiple                   ~127x
 ```
 
 Interpretation:
 
-> Under the stated assumptions, every $1 of AI inference supports approximately $94 of modeled recovered contribution opportunity.
+> Under the stated assumptions, every $1 of AI inference supports roughly $127 of modeled recovered contribution opportunity.
 
-This is **not** a claim of proven production ROI. It is a transparent economic model that can be inspected and stress-tested.
+This is **not** a claim of proven production ROI. It is a transparent economic model that can be inspected and stress-tested. `scripts/generate_economics_report.py` regenerates these figures from the latest recorded run, so the exact numbers move as the agent changes.
 
 ### Break-even conversion
 
@@ -293,7 +296,7 @@ AI inference cost
  × contribution margin)
 ```
 
-This is often more useful than defending one optimistic conversion assumption.
+For the run above that threshold is roughly **0.24%** — far below the 30% assumption, which is the real point of the metric. It is usually more useful than defending one optimistic conversion number.
 
 ---
 
@@ -326,7 +329,7 @@ Agent B consumes fewer tokens, but Agent A creates more modeled business value.
 
 Therefore:
 
-> **Optimize token margins, not token consumption.**
+> **Optimize economic value per inference dollar, not token consumption.**
 
 The relevant optimization target is:
 
@@ -406,14 +409,16 @@ scripts/run_evaluation.py
       ↓
 Measures quality + token cost
       ↓
-tokenomics_history.jsonl
+evals/tokenomics_history.jsonl
       ↓
-business_economics.py
+src/foundry_prompt_agent/business_economics.py
       ↓
 Combines measurements with assumptions
       ↓
-Markdown report + Streamlit dashboard
+scripts/generate_economics_report.py + apps/dashboard.py
 ```
+
+`evals/tokenomics_history.jsonl` is the experiment ledger. Every run appends measured AI metrics, the assumptions used, and the modeled economics, so a later comparison can tell whether the economics moved because the agent changed or because the assumptions did.
 
 The Streamlit dashboard keeps measured AI metrics fixed while allowing business assumptions to change interactively. It includes:
 

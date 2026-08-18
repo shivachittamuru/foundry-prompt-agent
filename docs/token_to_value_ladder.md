@@ -28,7 +28,7 @@ The central lesson is:
 ## The Ladder
 
 ```text
-Step 6: Economic Value / Token Margin
+Step 6: Economic Value
         Is the AI economically worth operating?
         Recovered contribution ÷ AI inference cost
         Break-even conversion
@@ -253,15 +253,7 @@ This is where evaluation becomes part of tokenomics.
 
 > What is one successful interaction economically worth?
 
-The earlier version of this project used a generic assumption such as:
-
-```text
-value per success = $0.10
-```
-
-That was useful for learning the framework, but it was too abstract for a credible business case.
-
-The current implementation derives value from an explicit demand-recovery model.
+An early version of this framework assigned a flat value to a successful task, such as `$0.10`. That is easy to explain but too abstract to defend as a business case, so the implemented model derives value from an explicit demand-recovery funnel instead.
 
 For Contoso Coffee:
 
@@ -311,7 +303,7 @@ This is much more explainable than assigning an arbitrary value to a successful 
 
 ---
 
-# Step 6 — Economic Value / Token Margin
+# Step 6 — Economic Value
 
 ## Question
 
@@ -491,7 +483,7 @@ A more expensive configuration can be economically superior if its higher qualit
 
 Therefore:
 
-> **Optimize token margins, not token consumption.**
+> **Optimize economic value per inference dollar, not token consumption.**
 
 ---
 
@@ -499,12 +491,14 @@ Therefore:
 
 | Rung | Primary question | Main implementation |
 |---|---|---|
-| Token Spend | How many tokens? | `agent.py` |
-| Token Cost | What did they cost? | `tokenomics.py` |
-| Token Efficiency | Cost per interaction? | `tokenomics.py` |
-| Token Effectiveness | Cost per successful resolution? | `tokenomics.py` + Foundry evaluation |
-| Business Economics | What could successful interactions be worth? | `business_economics.py` |
-| Economic Value | Is recovered contribution worth the inference spend? | `business_economics.py` + dashboard/report |
+| Token Spend | How many tokens? | `src/foundry_prompt_agent/agent.py` |
+| Token Cost | What did they cost? | `src/foundry_prompt_agent/tokenomics.py` |
+| Token Efficiency | Cost per interaction? | `src/foundry_prompt_agent/tokenomics.py` |
+| Token Effectiveness | Cost per successful resolution? | `src/foundry_prompt_agent/tokenomics.py` + Foundry evaluation |
+| Business Economics | What could successful interactions be worth? | `src/foundry_prompt_agent/business_economics.py` |
+| Economic Value | Is recovered contribution worth the inference spend? | `src/foundry_prompt_agent/business_economics.py` + `apps/dashboard.py` / `scripts/generate_economics_report.py` |
+
+Two supporting modules keep the rungs separable: `src/foundry_prompt_agent/foundry_eval.py` holds the Foundry evaluation calls and the CI quality gate, and `src/foundry_prompt_agent/history.py` reads and appends the experiment ledger.
 
 The orchestration lives in:
 
@@ -578,9 +572,7 @@ This allows later comparisons to answer:
 
 # Visualization
 
-The original ladder experiment plotted generic token margin over runs.
-
-The current project has more useful visuals.
+Three views make the ladder legible. `scripts/plot_tokenomics.py` and `scripts/generate_economics_report.py` render static versions from the ledger; `apps/dashboard.py` provides the interactive version.
 
 ## Run comparison
 
@@ -621,34 +613,9 @@ The Streamlit dashboard provides an interactive version of these analyses.
 
 ---
 
-# What Happened to the Original "Token Margin" Formula?
+# Why the Top Rung Is Not a Full Margin Model
 
-The first implementation defined token margin as:
-
-```text
-Business value
-- AI runtime cost
-- human review cost
-- error/risk cost
-=
-token margin
-```
-
-That remains a useful **advanced fully-loaded economics model**, especially in a real production deployment.
-
-However, it is no longer the primary metric for this demo because the assumed review and failure-cost values were not grounded in the coffee-shop scenario.
-
-The current business case therefore focuses first on:
-
-```text
-Recovered Contribution
-÷
-AI Inference Cost
-=
-AI Value Multiple
-```
-
-Later, with real production evidence, the model can be extended to:
+A fully loaded view of AI economics would subtract every operating cost:
 
 ```text
 Recovered contribution
@@ -660,9 +627,25 @@ Recovered contribution
 fully loaded AI contribution
 ```
 
-The ladder has not abandoned margin.
+That model is the right destination for a real production deployment, and an
+earlier version of this project implemented it. It was removed because the
+review and failure-cost inputs were invented rather than observed, which made
+the headline number less trustworthy than the simpler ratio.
 
-It has made the top rung more evidence-driven.
+The implemented top rung is therefore:
+
+```text
+Recovered Contribution
+÷
+AI Inference Cost
+=
+AI Value Multiple
+```
+
+Inference cost is measured, and every other input is a stated assumption that
+can be stress-tested. The ladder has not abandoned margin; it has made the top
+rung evidence-driven, and the fully loaded model can return once review,
+operational, and failure costs come from a real pilot.
 
 ---
 
