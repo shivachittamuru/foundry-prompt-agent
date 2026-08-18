@@ -1,0 +1,7 @@
+business:
+  missed_contacts_per_day: 100
+  ai_eligible_rate: 0.60
+  conversion_rate: 0.30
+  average_order_value_usd: 10.00
+  contribution_margin: 0.35
+  days_per_month: 30

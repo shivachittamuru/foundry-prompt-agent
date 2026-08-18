@@ -20,10 +20,13 @@ from src.foundry_prompt_agent.tokenomics import (
     summarize_efficiency,
     summarize_margin,
 )
+from src.foundry_prompt_agent.business_economics import (
+    load_business_assumptions,
+    summarize_business_economics,
+)
 
-
-DATASET_PATH = Path("evals/contoso_agent_eval_v2.jsonl")
-RESULTS_PATH = Path("evals/results_v2.jsonl")
+DATASET_PATH = Path("evals/contoso_agent_eval_v1.jsonl")
+RESULTS_PATH = Path("evals/results_v1.jsonl")
 HISTORY_PATH = Path("evals/tokenomics_history.jsonl")
 
 JUDGE_MODEL = os.environ["FOUNDRY_JUDGE_MODEL"]
@@ -332,42 +335,213 @@ def enforce_quality_gate(run) -> None:
     print("\nQUALITY GATE PASSED")
 
 
+# def main() -> None:
+#     efficiency = generate_results()
+#     run = run_cloud_evaluation()
+
+#     print(f"Final status: {run.status}")
+#     print(f"Foundry report: {run.report_url}")
+
+#     # Behavior rubric is the success signal; scope adherence is a separate guardrail.
+#     if run.status == "completed":
+#         success_rate = get_pass_rate(run, "contoso_behavior_rubric")
+#         effectiveness = summarize_effectiveness(efficiency, success_rate)
+#         print_effectiveness(effectiveness)
+
+#         economics = summarize_economics(
+#             efficiency, effectiveness, VALUE_PER_SUCCESS_USD
+#         )
+#         print_economics(economics)
+
+#         margin = summarize_margin(
+#             efficiency,
+#             effectiveness,
+#             economics,
+#             REVIEW_COST_PER_TASK_USD,
+#             ERROR_COST_PER_FAILURE_USD,
+#             JUDGE_COST_PER_RUN_USD,
+#         )
+#         print_margin(margin)
+
+#         record = {
+#             "run_id": RUN_ID,
+#             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+#             **ladder_record(efficiency, effectiveness, economics, margin),
+#         }
+#         append_history(record)
+#         print(f"\nAppended ladder to {HISTORY_PATH}")
+
+#     enforce_quality_gate(run)
+
+
+def print_business_economics(summary: dict) -> None:
+    print("\n=== Business Economics ===")
+
+    print(
+        f"Addressable contacts/day: "
+        f"{summary['addressable_contacts_per_day']:.1f}"
+    )
+
+    print(
+        f"Successful contacts/day: "
+        f"{summary['successful_contacts_per_day']:.1f}"
+    )
+
+    print(
+        f"Recovered orders/day: "
+        f"{summary['recovered_orders_per_day']:.1f}"
+    )
+
+    print(
+        f"Recovered revenue/month: "
+        f"${summary['recovered_revenue_per_month']:,.2f}"
+    )
+
+    print(
+        f"Recovered contribution/month: "
+        f"${summary['recovered_contribution_per_month']:,.2f}"
+    )
+
+    print(
+        f"AI inference cost/month: "
+        f"${summary['ai_inference_cost_per_month']:,.2f}"
+    )
+
+    print(
+        f"AI Value Multiple: "
+        f"{summary['ai_value_multiple']:,.1f}x"
+    )
+
+    print(
+        f"Break-even conversion rate: "
+        f"{summary['break_even_conversion_rate']:.2%}"
+    )
+
+
 def main() -> None:
+    # 1. Run the agent against the regression dataset and measure token usage.
     efficiency = generate_results()
+
+    # 2. Run Foundry evaluation to measure response quality.
     run = run_cloud_evaluation()
 
     print(f"Final status: {run.status}")
     print(f"Foundry report: {run.report_url}")
 
-    # Behavior rubric is the success signal; scope adherence is a separate guardrail.
     if run.status == "completed":
-        success_rate = get_pass_rate(run, "contoso_behavior_rubric")
-        effectiveness = summarize_effectiveness(efficiency, success_rate)
+        # 3. Measured quality signal.
+        success_rate = get_pass_rate(
+            run,
+            "contoso_behavior_rubric",
+        )
+
+        # 4. Quality-adjusted token efficiency.
+        effectiveness = summarize_effectiveness(
+            efficiency,
+            success_rate,
+        )
         print_effectiveness(effectiveness)
 
-        economics = summarize_economics(
-            efficiency, effectiveness, VALUE_PER_SUCCESS_USD
+        # 5. Load transparent business assumptions.
+        assumptions = load_business_assumptions(
+            Path("economics/business_assumptions.yaml")
         )
-        print_economics(economics)
 
-        margin = summarize_margin(
-            efficiency,
-            effectiveness,
-            economics,
-            REVIEW_COST_PER_TASK_USD,
-            ERROR_COST_PER_FAILURE_USD,
-            JUDGE_COST_PER_RUN_USD,
+        # 6. Combine measured AI performance with business assumptions.
+        business_economics = summarize_business_economics(
+            missed_contacts_per_day=assumptions[
+                "missed_contacts_per_day"
+            ],
+            ai_eligible_rate=assumptions[
+                "ai_eligible_rate"
+            ],
+            success_rate=success_rate,
+            conversion_rate=assumptions[
+                "conversion_rate"
+            ],
+            average_order_value_usd=assumptions[
+                "average_order_value_usd"
+            ],
+            contribution_margin=assumptions[
+                "contribution_margin"
+            ],
+            cost_per_task_usd=efficiency[
+                "cost_per_task"
+            ],
+            days_per_month=assumptions[
+                "days_per_month"
+            ],
         )
-        print_margin(margin)
 
+        print_business_economics(
+            business_economics
+        )
+
+        # 7. Store the measured + economic results for later comparison.
         record = {
             "run_id": RUN_ID,
-            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-            **ladder_record(efficiency, effectiveness, economics, margin),
-        }
-        append_history(record)
-        print(f"\nAppended ladder to {HISTORY_PATH}")
+            "timestamp_utc": datetime.now(
+                timezone.utc
+            ).isoformat(),
 
+            # Measured token efficiency
+            "tasks": efficiency["tasks"],
+            "total_tokens": efficiency[
+                "total_tokens"
+            ],
+            "total_cost": efficiency[
+                "total_cost"
+            ],
+            "tokens_per_task": efficiency[
+                "tokens_per_task"
+            ],
+            "cost_per_task": efficiency[
+                "cost_per_task"
+            ],
+
+            # Measured effectiveness
+            "success_rate": effectiveness[
+                "success_rate"
+            ],
+            "successful_tasks": effectiveness[
+                "successful_tasks"
+            ],
+            "cost_per_success": effectiveness[
+                "cost_per_success"
+            ],
+            
+            # Business assumptions used for this run
+            "missed_contacts_per_day": assumptions[
+                "missed_contacts_per_day"
+            ],
+            "ai_eligible_rate": assumptions[
+                "ai_eligible_rate"
+            ],
+            "conversion_rate": assumptions[
+                "conversion_rate"
+            ],
+            "average_order_value_usd": assumptions[
+                "average_order_value_usd"
+            ],
+            "contribution_margin": assumptions[
+                "contribution_margin"
+            ],
+            "days_per_month": assumptions[
+                "days_per_month"
+            ],
+
+            # Modeled business economics
+            **business_economics,
+        }
+
+        append_history(record)
+
+        print(
+            f"\nAppended tokenomics run to "
+            f"{HISTORY_PATH}"
+        )
+
+    # 8. CI quality gate remains separate from the economics.
     enforce_quality_gate(run)
 
 
