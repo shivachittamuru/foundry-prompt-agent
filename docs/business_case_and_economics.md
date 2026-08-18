@@ -431,9 +431,9 @@ Do not depend on one assumption.
 
 | Scenario | Conversion Rate | Interpretation |
 |---|---:|---|
-| Bear | 10% | Conservative recovery |
+| Conservative | 10% | Conservative recovery |
 | Base | 20% | Moderate recovery |
-| Bull | 30% | Strong recovery |
+| Optimistic | 30% | Strong recovery |
 
 Also vary:
 

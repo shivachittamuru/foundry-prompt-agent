@@ -25,8 +25,8 @@ from src.foundry_prompt_agent.business_economics import (
     summarize_business_economics,
 )
 
-DATASET_PATH = Path("evals/contoso_agent_eval_v1.jsonl")
-RESULTS_PATH = Path("evals/results_v1.jsonl")
+DATASET_PATH = Path("evals/contoso_agent_eval_v3.jsonl")
+RESULTS_PATH = Path("evals/results_v3.jsonl")
 HISTORY_PATH = Path("evals/tokenomics_history.jsonl")
 
 JUDGE_MODEL = os.environ["FOUNDRY_JUDGE_MODEL"]
