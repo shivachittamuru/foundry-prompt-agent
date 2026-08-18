@@ -1,65 +1,79 @@
 # Token-to-Value Ladder
 
-This document captures the tokenomics thread of the project: a bottom-up framework for turning raw token usage into demonstrable business value, and how each rung is implemented in this repository.
+This document explains the **general tokenomics framework** used in this project: how to move from raw token usage to business value.
 
-The agent itself is small. The interesting engineering is the harness around it that can answer a question most agent demos cannot: not "does it work?" but "is the spend worth it?"
+It is intentionally different from [`business_case_and_economics.md`](business_case_and_economics.md):
 
-## The hill-climbing framework
+- **This document** explains the reusable measurement ladder and how the repository implements it.
+- **The business-case document** applies that ladder to the Contoso Coffee demand-recovery scenario.
 
-![Token ROI Ladder from token visibility to token accountability](images/token-roi-ladder.png)
-
-Token economics works best as a ladder climbed one rung at a time. Each rung reframes the conversation, moving it away from raw AI usage and toward AI value.
+The two documents therefore complement each other:
 
 ```text
-Step 6: Token Margin
-        Are we creating profitable, risk-adjusted value?
-        Business value - AI runtime cost - human review cost - error/risk cost
+Token-to-Value Ladder
+        ↓
+general measurement framework
+        ↓
+Business Case & Economics
+        ↓
+scenario-specific application
+```
 
-Step 5: Token Economics
-        How much business value do we create per dollar of token spend?
+The central lesson is:
+
+> **The goal is not to minimize token consumption. The goal is to maximize economically valuable outcomes per dollar of AI inference while preserving quality.**
+
+---
+
+## The Ladder
+
+```text
+Step 6: Economic Value / Token Margin
+        Is the AI economically worth operating?
+        Recovered contribution ÷ AI inference cost
+        Break-even conversion
+        Sensitivity / scenario resilience
+
+Step 5: Business Economics
+        What is a successful interaction worth?
+        Successful interactions
+        → expected orders
+        → revenue
+        → contribution
 
 Step 4: Token Effectiveness
-        How many tokens do we spend per successful task?
+        What does one successful outcome cost?
+        Cost per successful resolution
 
 Step 3: Token Efficiency
-        How many tokens do we spend per task?
+        What does one interaction cost?
+        Tokens per interaction
+        Cost per interaction
 
 Step 2: Token Cost
-        How much did those tokens cost?
+        What did the consumed tokens cost?
 
 Step 1: Token Spend
         How many tokens did we use?
 ```
 
-At the bottom of the ladder, you know what you spent. At the top, you know whether the spend produced measurable value. The goal is not to minimize tokens. The goal is to climb from token visibility to token accountability.
+Each rung depends on the one below it.
 
-Each rung depends on the one below it. You cannot price tokens you never counted, and you cannot compute value per dollar until you can price a successful task.
+At the bottom, we know what the AI consumed.
 
-## How the ladder maps onto this project
+At the top, we can answer:
 
-The Prompt Agent runs in Microsoft Foundry. Everything on the ladder is owned by this repository: the client in [../src/foundry_prompt_agent/agent.py](../src/foundry_prompt_agent/agent.py) captures token usage, the pure tokenomics functions live in [../src/foundry_prompt_agent/tokenomics.py](../src/foundry_prompt_agent/tokenomics.py), and the orchestrator in [../evaluation.py](../evaluation.py) prints the ladder after each run.
+> **Was that spend economically worthwhile?**
 
-| Step | Question | Where it lives | Data introduced |
-| --- | --- | --- | --- |
-| 1. Token Spend | How many tokens? | `ask_agent()` return value | `response.usage` per case |
-| 2. Token Cost | What did they cost? | `PRICING` + `compute_cost()` | dollars per 1M tokens |
-| 3. Token Efficiency | Tokens per task? | `summarize_efficiency()` | total tokens divided by task count |
-| 4. Token Effectiveness | Tokens per successful task? | `summarize_effectiveness()` | success rate from the quality gate |
-| 5. Token Economics | Value per dollar? | `summarize_economics()` | business value per success |
-| 6. Token Margin | Profitable, risk-adjusted value? | `summarize_margin()` | review cost and error/risk cost |
+---
 
-> [!IMPORTANT]
-> Foundry's monitoring dashboard already shows Steps 1 and 2 for production traffic (see [monitoring.md](monitoring.md), "Token usage" and "Latency"). What it does not do is tie tokens to task success or business value. That link exists only because this repository owns the evaluation harness. Steps 3 through 6 are where the Python harness earns its keep.
+# Step 1 — Token Spend
 
-The rest of this document examines all six implemented rungs in depth.
+## Question
 
-## Step 1: Token Spend
+> How many tokens did the agent use?
 
-The question: how many tokens did we use?
-
-Spend is raw visibility. Before optimizing anything, every task must carry its own token count. The OpenAI Responses API returns this on `response.usage`, so the fix is to stop throwing that object away.
-
-The agent client captures five fields per call:
+The agent client captures token usage returned by the Responses API:
 
 ```python
 usage = {
@@ -72,236 +86,650 @@ usage = {
 }
 ```
 
-Two nested fields are captured for later rungs, not for display:
+Important details:
 
-* `cached_tokens` is a subset of `input_tokens` that was served from cache. It is usually billed at a discount, so ignoring it overstates cost in Step 2.
-* `reasoning_tokens` is a subset of `output_tokens` produced by a reasoning model while thinking. It is captured for visibility so you can see how much you pay to think versus to answer.
+- input and output tokens are tracked separately,
+- cached input is captured because it may be priced differently,
+- reasoning tokens are kept for visibility,
+- the actual model returned by the API is recorded.
 
-Capturing `response.model` matters because the agent's model is configured in Foundry, not in this repo. Letting the API report the model means cost attribution keys off reality rather than a hardcoded assumption.
+Without this rung, every later economics calculation is guesswork.
 
-The lesson: the results ledger becomes the foundation for every rung above it. If a task does not record what it spent, no later rung can reason about it.
+---
 
-## Step 2: Token Cost
+# Step 2 — Token Cost
 
-The question: what did those tokens cost?
+## Question
 
-Tokens are a count. Cost is a dollar figure. The conversion is not a single rate, and three details make it worth understanding.
+> What did those tokens cost?
 
-First, input and output are priced differently. Output almost always costs more than input, so `total_tokens` alone cannot produce a cost. This is why Step 1 captured the split.
+Token counts become dollar cost using model pricing.
 
-Second, cached input is discounted. The `cached_tokens` subset is billed at a lower rate than fresh input, so the calculation prices it separately.
-
-Third, reasoning tokens are already inside `output_tokens`. They must not be added again. Double-counting reasoning tokens is the classic first-attempt cost bug, and the code avoids it by never referencing `reasoning_tokens` in the math.
-
-```python
-def compute_cost(usage: dict) -> float:
-    rates = PRICING[usage["model"]]  # KeyError here is a feature: unknown model = unpriced spend
-    billed_input = usage["input_tokens"] - usage["cached_tokens"]
-    return (
-        billed_input / 1_000_000 * rates["input"]
-        + usage["cached_tokens"] / 1_000_000 * rates["cached"]
-        + usage["output_tokens"] / 1_000_000 * rates["output"]
-    )
-```
-
-Prices live in a hardcoded `PRICING` dict keyed by model name, with a dated comment. An earlier version read prices from environment variables, but prices are neither secret nor environment-specific: they are public, stable facts about a model. Environment variables created needless coupling to CI configuration. A dict keyed by model is also more capable, because it prices whatever `response.model` reports instead of assuming a single model.
-
-There are two cost centers in this project:
-
-* Agent cost is the spend from `ask_agent()`, the product doing its work. It is computed precisely from captured usage.
-* Judge cost is the spend the evaluators consume while scoring quality. The Foundry evaluation run does not reliably expose judge-token usage through the API, so judge cost is deferred to the economics rung where it actually affects value per dollar.
-
-The lesson: keep pricing pure and dependency-free. The tokenomics module knows nothing about Azure or Foundry, which makes it easy to reason about and easy to grow.
-
-## Step 3: Token Efficiency
-
-The question: how many tokens do we spend per task?
-
-A run total cannot be compared across runs. Change the dataset size and the total moves for a boring reason. Efficiency normalizes by work, producing tokens per task and cost per task. Now a comparison between two prompt versions is fair even when the datasets differ in size.
-
-```python
-def summarize_efficiency(usages: list[dict]) -> dict:
-    tasks = len(usages)
-    if tasks == 0:
-        return {...}
-
-    total_tokens = sum(u["total_tokens"] for u in usages)
-    total_cost = sum(compute_cost(u) for u in usages)
-    return {
-        "tasks": tasks,
-        "tokens_per_task": total_tokens / tasks,
-        "input_tokens_per_task": total_input / tasks,
-        "output_tokens_per_task": total_output / tasks,
-        "cost_per_task": total_cost / tasks,
-    }
-```
-
-Two design choices make this rung useful.
-
-Efficiency is outcome-blind. It counts every task, whether it passed or failed. A cheaper-per-task agent looks better here even if it is wrong more often. That blind spot is exactly what Step 4 exists to fix, so the two rungs are kept separate on purpose.
-
-The input and output rates are reported separately. When cost per task creeps up, the split reveals the cause: a bloated prompt raises input per task, while verbose or reasoning-heavy answers raise output per task. One number hides the cause. Two numbers point at it.
-
-The lesson: record `tokens_per_task` and `cost_per_task` as a baseline. After any change to prompt or model, these rates show whether the agent got leaner or heavier per task, independent of how many cases ran.
-
-## Step 4: Token Effectiveness
-
-The question: how many tokens do we spend per successful task?
-
-Effectiveness is total spend divided by successful outcomes. The word total matters: you paid for the failed tasks too, on the way to producing the good ones. The honest question is not what the passing cases cost in isolation. It is what it cost in total to get each success.
-
-This produces a clean identity:
+Conceptually:
 
 ```text
-tokens per success = total tokens / (success rate * tasks)
-                   = tokens per task / success rate
+Fresh input tokens
+× input price
+
++
+
+Cached input tokens
+× cached-input price
+
++
+
+Output tokens
+× output price
+
+=
+
+AI inference cost
 ```
 
-Effectiveness is efficiency divided by success rate. The consequences are worth internalizing:
+The repository keeps pricing logic in `src/foundry_prompt_agent/tokenomics.py`.
 
-* At a 100 percent success rate, effectiveness equals efficiency. Nothing is wasted.
-* At a 50 percent success rate, effective cost per success is double the per-task cost. Half the spend bought failures.
-* As success approaches zero, cost per success approaches infinity. You are paying and getting nothing.
+This layer should remain independent of the business scenario.
 
-```python
-def summarize_effectiveness(efficiency: dict, success_rate: float) -> dict:
-    if success_rate <= 0:
-        return {"tokens_per_success": float("inf"), ...}
-
-    return {
-        "success_rate": success_rate,
-        "successful_tasks": success_rate * efficiency["tasks"],
-        "tokens_per_success": efficiency["tokens_per_task"] / success_rate,
-        "cost_per_success": efficiency["cost_per_task"] / success_rate,
-    }
-```
-
-A key realization: this rung needs no per-case join between tokens and results. A per-case join answers a different, less useful question, namely what the passing rows alone consumed. For return on investment, the right metric is total spend over successful outcomes, and that needs only two numbers the harness already produces: the efficiency summary from Step 3 and the success rate from the quality gate. The rung stays aggregate and local.
-
-Success needs a definition. This project has two evaluators, and the harness uses the behavior rubric as the success signal because it is the substantive judgment of whether the agent did the job well. Scope adherence is treated as a separate guardrail that the quality gate already enforces. Defining success as "passed both evaluators" would require the per-case combined pass count, which the aggregate results do not expose, so the behavior rubric keeps the rung minimal.
-
-The lesson: compare `cost_per_success` against `cost_per_task`. The gap between them is the price of failure, the tax paid for tasks that did not work. Raising the success rate shrinks the gap, and at 100 percent the two converge.
-
-## Step 5: Token Economics
-
-The question: how much business value do we create per dollar of token spend?
-
-Every rung so far answered a cost question. Economics asks the first value question, and answering it requires one input the system cannot produce on its own: the value of a single successful task. A correctly answered coffee question might be worth some amount of deflected support cost, but only the business can assert that figure. The harness takes it as an assumption.
-
-Because the value of a success is a business assumption rather than a public fact, it belongs in configuration. Model prices are stable facts about a model and stay hardcoded, but value per success changes with deployment and context, so it is read from an environment variable with a sensible default:
-
-```python
-VALUE_PER_SUCCESS_USD = float(os.getenv("VALUE_PER_SUCCESS_USD", "0.10"))
-```
-
-With that input, economics is a short hop from Step 4 through another identity:
+The result is:
 
 ```text
-value per dollar = (value per success * successes) / total cost
-                 = value per success / cost per success
+total AI cost
 ```
 
-Value per dollar is the assumed value of a success divided by the effectiveness cost already computed in Step 4.
+for an evaluation run.
 
-```python
-def summarize_economics(efficiency, effectiveness, value_per_success):
-    total_value = value_per_success * effectiveness["successful_tasks"]
-    total_cost = efficiency["total_cost"]
-    value_per_dollar = total_value / total_cost if total_cost > 0 else float("inf")
-    return {
-        "value_per_success": value_per_success,
-        "total_value": total_value,
-        "total_cost": total_cost,
-        "value_per_dollar": value_per_dollar,
-    }
-```
+---
 
-When a success is worth cents and costs a tiny fraction of a cent in tokens, the ratio lands in the hundreds or thousands. That number is what reframes a conversation from "AI is expensive" to "each dollar of token spend returns this much value."
+# Step 3 — Token Efficiency
 
-Two honesty notes about this rung:
+## Question
 
-* The cost side is agent token spend only. Judge and evaluation tokens are still deferred, so the real ratio is somewhat lower than printed. Including that spend is part of the margin rung.
-* The ratio is only as trustworthy as the `value_per_success` assumption. Treat it as a lever to reason about, not a precise accounting figure.
+> How expensive is one interaction?
 
-The lesson: a single assumed number turns the cost ladder into a value ladder. The quality of that assumption, not the arithmetic, is what makes the ratio credible.
+Raw totals are difficult to compare because evaluation runs can contain different numbers of cases.
 
-## Step 6: Token Margin
-
-The question: are we creating profitable, risk-adjusted value?
-
-Economics compared value against token spend, but tokens are rarely the real cost of running an agent. Margin is the complete accounting:
+Efficiency normalizes by task count:
 
 ```text
-margin = business value created
-       - AI runtime cost      (tokens: agent plus any judge spend)
-       - human review cost    (a person checking outputs)
-       - error/risk cost      (what failures actually cost)
+tokens per interaction
+=
+total tokens / tasks
 ```
 
-```python
-def summarize_margin(efficiency, effectiveness, economics,
-                     review_cost_per_task, error_cost_per_failure,
-                     judge_cost_per_run=0.0):
-    tasks = efficiency["tasks"]
-    failed_tasks = tasks - effectiveness["successful_tasks"]
+and:
 
-    value = economics["total_value"]
-    ai_runtime_cost = economics["total_cost"] + judge_cost_per_run
-    human_review_cost = review_cost_per_task * tasks
-    error_risk_cost = error_cost_per_failure * failed_tasks
-
-    margin = value - ai_runtime_cost - human_review_cost - error_risk_cost
-    return {..., "margin": margin, "profitable": margin > 0}
+```text
+cost per interaction
+=
+total AI cost / tasks
 ```
 
-The three subtracted costs are business assumptions, so they follow the same pattern as value per success: environment variables with defaults.
+This produces metrics such as:
 
-Two lessons surface here that the lower rungs cannot show.
+```text
+Tokens / interaction
+Input tokens / interaction
+Output tokens / interaction
+Cost / interaction
+```
 
-Human review cost often dominates. If a person skims every answer, that labor can dwarf the token cost and even push margin negative. This is the uncomfortable truth behind many claims that AI is cheap: the model tokens were cheap, but the human in the loop was not. Review cost also ties back to trust, because the more the success rate justifies automation, the less review the outputs need.
+These are useful when comparing:
 
-Failures are punished twice. Error and risk cost scales with failed tasks, which is `tasks - successful_tasks`, so a low success rate hurts effectiveness in Step 4 and then hurts margin again here. Quality is not a soft metric on this ladder. It moves the money.
+- prompt versions,
+- agent versions,
+- models,
+- retrieval strategies,
+- context sizes.
 
-The deferred judge and evaluation spend finally gets a home through `judge_cost_per_run`, which is added to AI runtime cost. It defaults to zero because Foundry does not reliably expose judge-token usage, so the model provides an honest slot to fill with an estimate rather than a fabricated number.
+But efficiency is deliberately **quality-blind**.
 
-The lesson: margin is where quality, cost, and business value meet. A technically impressive agent with a poor success rate or heavy review burden can still lose money, and this rung is the only one that makes that visible.
+A cheap wrong answer is still cheap at this rung.
 
-## Run history
+That is why the ladder continues.
 
-A single run prints the ladder once. The value grows when you can watch it move. After each completed run, `evaluation.py` appends one compact record to [../evals/tokenomics_history.jsonl](../evals/tokenomics_history.jsonl) through the pure `ladder_record()` helper, tagged with the run id and a UTC timestamp.
+---
 
-Each line captures the headline numbers from every rung: tasks, total tokens and cost, cost per task, success rate, cost per success, value per dollar, and margin. Because the file is append-only JSONL, a change to the prompt or model can be judged on the trend rather than a single snapshot. A prompt edit that raises quality but also raises cost per success is easy to miss in one run and obvious across ten.
+# Step 4 — Token Effectiveness
 
-### Observations from the first three runs
+## Question
 
-The first three records contain 2, 4, and 20 tasks respectively. All three report a 100 percent behavior success rate, so `cost_per_success` equals `cost_per_task` in every run. No token spend was lost to failed behavior cases, and the error/risk term contributed zero to margin under the current assumptions.
+> What does one successful outcome cost?
 
-The normalized results vary materially with sample size:
+The Foundry behavior evaluator provides the success signal.
 
-* Tokens per task fell from 2,680 in the two-task run to 1,560 in the four-task run, then settled at 1,813.4 in the twenty-task run.
-* Cost per task fell from $0.009794 to $0.004621, then rose to $0.005617. The twenty-task result is about 43 percent cheaper per task than the two-task result, but about 22 percent more expensive than the four-task result.
-* Value per dollar moved inversely because success stayed at 100 percent and value per success remained $0.10: 10.2x, 21.6x, then 17.8x.
-* Margin per task was comparatively stable at approximately $0.0702, $0.0754, and $0.0744. Total margin rose mainly because more successful tasks were processed, so total margin should not be used to compare runs of different sizes.
+If:
 
-The four-task run is the most efficient of the three, but it is too small to establish that the agent became more efficient. Different case mixes can produce large swings in prompt length, retrieved context, reasoning, and response length. The twenty-task run is the strongest current baseline because it averages over more cases, although one successful run is still not enough to establish a stable trend.
+```text
+Cost / interaction = $0.01
+Success rate = 50%
+```
 
-The fact that the two-task run used fewer total tokens than the four-task run but cost slightly more shows that token composition matters. Input, cached input, and output have different prices. The current history stores only total tokens and total cost, so it cannot explain whether this difference came from output volume, cache usage, or another part of the token mix.
+then:
 
-These comparisons are valid only when the model, pricing table, value-per-success assumption, review cost, error cost, and evaluation contract remain unchanged. Future history records should also capture those inputs, plus input, cached, output, and reasoning-token totals, to make changes attributable rather than merely observable.
+```text
+Cost / successful resolution
+=
+$0.01 / 50%
+=
+$0.02
+```
 
-![Token margin over the first three runs, showing total margin rising with task count while margin per task stays near 0.07 dollars](images/tokenomics_margin.png)
+The repository calculates:
 
-The chart plots both series deliberately. Total margin in blue climbs from run to run, but that rise mostly tracks task count and says little about the agent itself. Margin per task in green is the fair comparison, and it stays in a narrow band near $0.07, which is the real signal: per-unit economics held steady across the three runs. The plot is generated by [../plot_history.py](../plot_history.py), which reads the history file, prints a per-run table, and writes the image. Regenerate it after new runs with `uv run --group viz plot_history.py`.
+```text
+tokens per success
+cost per success
+```
 
+using:
 
-## What comes next
+```text
+cost per success
+=
+cost per interaction / success rate
+```
 
-All six rungs are implemented: tokens, dollars, cost per task, cost per success, value per dollar, and risk-adjusted margin. The ladder is complete from token visibility at the bottom to token accountability at the top.
+This is a critical step because failures still consume tokens.
 
-The natural extensions from here are about strengthening the inputs rather than adding rungs:
+The business pays for both:
 
-* Replace the assumed business costs with measured figures once real review time and failure impact are known.
-* Estimate judge and evaluation spend to sharpen the AI runtime cost term.
-* Chart the appended run history to visualize margin trends over time.
+```text
+successful interactions
++
+failed interactions
+```
 
-The through-line of the whole ladder matches the core lesson of the project: trust comes from repeatable evidence, and value comes from measuring spend against outcomes rather than counting tokens in isolation.
+so the honest question is:
+
+> How much total AI spend was required to produce one acceptable outcome?
+
+This is where evaluation becomes part of tokenomics.
+
+---
+
+# Step 5 — Business Economics
+
+## Question
+
+> What is one successful interaction economically worth?
+
+The earlier version of this project used a generic assumption such as:
+
+```text
+value per success = $0.10
+```
+
+That was useful for learning the framework, but it was too abstract for a credible business case.
+
+The current implementation derives value from an explicit demand-recovery model.
+
+For Contoso Coffee:
+
+```text
+Missed customer contacts
+        ↓
+AI-addressable contacts
+        ↓
+measured agent success rate
+        ↓
+successfully served interactions
+        ↓
+assumed conversion rate
+        ↓
+estimated recovered orders
+        ↓
+average order value
+        ↓
+recovered revenue
+        ↓
+contribution margin
+        ↓
+recovered contribution
+```
+
+The reusable formula for expected contribution from one successful interaction is:
+
+```text
+Expected contribution / successful interaction
+=
+conversion rate
+× average order value
+× contribution margin
+```
+
+Example:
+
+```text
+30% conversion
+× $10 average order
+× 35% contribution margin
+=
+$1.05 expected contribution per successful interaction
+```
+
+This is much more explainable than assigning an arbitrary value to a successful task.
+
+---
+
+# Step 6 — Economic Value / Token Margin
+
+## Question
+
+> Is the AI economically worth operating?
+
+The primary metric for this project is:
+
+## AI Value Multiple
+
+```text
+AI Value Multiple
+=
+Recovered Contribution
+÷
+AI Inference Cost
+```
+
+For example:
+
+```text
+Recovered contribution / month    $1,795
+AI inference cost / month            $216
+-----------------------------------------
+AI Value Multiple                    8.3x
+```
+
+Interpretation:
+
+> Under the stated business assumptions, every $1 of AI inference supports approximately $8.30 of recovered contribution opportunity.
+
+This is the top of the ladder because it connects:
+
+```text
+tokens
++
+quality
++
+business outcomes
+```
+
+into one economic decision.
+
+---
+
+# Break-Even Economics
+
+A large value multiple is useful, but a more robust question is:
+
+> **How low can conversion fall before AI stops paying for itself?**
+
+The model therefore calculates:
+
+```text
+Break-even conversion rate
+=
+AI inference cost
+÷
+(successful contacts
+ × average order value
+ × contribution margin)
+```
+
+This helps avoid relying on a single optimistic business assumption.
+
+Instead of saying:
+
+> "We believe conversion will be 30%."
+
+the analysis can say:
+
+> "Here is the minimum conversion rate required for modeled recovered contribution to cover inference cost."
+
+---
+
+# Sensitivity Analysis
+
+Business assumptions are uncertain.
+
+Therefore economics should be explored across scenarios rather than represented as one fixed ROI number.
+
+Examples:
+
+```text
+Conversion rate:
+5%
+10%
+20%
+30%
+```
+
+or:
+
+```text
+AI inference cost:
+measured
+5x measured
+10x measured
+20x measured
+```
+
+The measured AI performance remains fixed while business assumptions are changed locally.
+
+```text
+Measured
+────────
+success rate
+tokens / interaction
+cost / interaction
+
+        +
+
+Scenario assumptions
+────────────────────
+missed contacts
+AI eligibility
+conversion
+AOV
+contribution margin
+cost stress
+
+        ↓
+
+Economic model
+```
+
+No new model call is required simply to explore business assumptions.
+
+---
+
+# Measured vs. Assumed vs. Proven
+
+This distinction is essential.
+
+| Measured by the system | Assumed in the model | Validate in a real pilot |
+|---|---|---|
+| Token usage | Missed contacts/day | Actual missed demand |
+| AI inference cost | AI-eligible rate | Incremental orders |
+| Evaluation success rate | Conversion rate | Actual conversion lift |
+| Cost per successful resolution | Average order value | Actual AOV |
+| Scope/quality metrics | Contribution margin | Actual contribution lift |
+
+The repository can prove the first column.
+
+It can transparently model the second.
+
+Only a production experiment can prove the third.
+
+---
+
+# Why Cheapness Is Not the Goal
+
+Suppose two configurations produce:
+
+| Metric | Agent A | Agent B |
+|---|---:|---:|
+| Tokens / interaction | 3,000 | 1,800 |
+| Cost / interaction | $0.020 | $0.012 |
+| Success rate | 94% | 82% |
+
+A token-consumption view says:
+
+> Agent B is cheaper.
+
+But token effectiveness asks:
+
+```text
+What does each successful resolution cost?
+```
+
+and business economics asks:
+
+```text
+How much recovered contribution does each configuration support?
+```
+
+A more expensive configuration can be economically superior if its higher quality produces more valuable outcomes.
+
+Therefore:
+
+> **Optimize token margins, not token consumption.**
+
+---
+
+# How the Ladder Maps to the Repository
+
+| Rung | Primary question | Main implementation |
+|---|---|---|
+| Token Spend | How many tokens? | `agent.py` |
+| Token Cost | What did they cost? | `tokenomics.py` |
+| Token Efficiency | Cost per interaction? | `tokenomics.py` |
+| Token Effectiveness | Cost per successful resolution? | `tokenomics.py` + Foundry evaluation |
+| Business Economics | What could successful interactions be worth? | `business_economics.py` |
+| Economic Value | Is recovered contribution worth the inference spend? | `business_economics.py` + dashboard/report |
+
+The orchestration lives in:
+
+```text
+evaluation.py
+```
+
+It connects:
+
+```text
+agent execution
+      ↓
+token measurements
+      ↓
+Foundry quality evaluation
+      ↓
+technical tokenomics
+      ↓
+business economics
+      ↓
+history
+```
+
+---
+
+# Run History as an Experiment Ledger
+
+`evals/tokenomics_history.jsonl` should be treated as an experiment ledger.
+
+Each current-style record should preserve three categories.
+
+## Measured AI data
+
+```text
+run id
+timestamp
+tasks
+tokens / interaction
+cost / interaction
+success rate
+cost / successful resolution
+```
+
+## Business assumptions
+
+```text
+missed contacts/day
+AI-eligible rate
+conversion rate
+average order value
+contribution margin
+days/month
+```
+
+## Modeled outcomes
+
+```text
+recovered orders
+recovered revenue
+recovered contribution
+AI inference cost
+AI Value Multiple
+break-even conversion
+```
+
+This allows later comparisons to answer:
+
+> Did economics change because the agent changed, or because the assumptions changed?
+
+---
+
+# Visualization
+
+The original ladder experiment plotted generic token margin over runs.
+
+The current project has more useful visuals.
+
+## Run comparison
+
+Track:
+
+```text
+success rate
+cost / interaction
+cost / success
+AI Value Multiple
+```
+
+This is useful for comparing genuine prompt/model/agent changes.
+
+## Contribution vs. AI cost
+
+```text
+Recovered contribution
+        vs.
+AI inference cost
+```
+
+This visually communicates the business asymmetry.
+
+## Conversion sensitivity
+
+```text
+AI Value Multiple
+        ↑
+        │
+        │
+        └────────────→ conversion rate
+```
+
+This shows whether the economics survive more conservative assumptions.
+
+The Streamlit dashboard provides an interactive version of these analyses.
+
+---
+
+# What Happened to the Original "Token Margin" Formula?
+
+The first implementation defined token margin as:
+
+```text
+Business value
+- AI runtime cost
+- human review cost
+- error/risk cost
+=
+token margin
+```
+
+That remains a useful **advanced fully-loaded economics model**, especially in a real production deployment.
+
+However, it is no longer the primary metric for this demo because the assumed review and failure-cost values were not grounded in the coffee-shop scenario.
+
+The current business case therefore focuses first on:
+
+```text
+Recovered Contribution
+÷
+AI Inference Cost
+=
+AI Value Multiple
+```
+
+Later, with real production evidence, the model can be extended to:
+
+```text
+Recovered contribution
+- inference cost
+- human review cost
+- operational cost
+- failure/risk cost
+=
+fully loaded AI contribution
+```
+
+The ladder has not abandoned margin.
+
+It has made the top rung more evidence-driven.
+
+---
+
+# The Complete Mental Model
+
+```text
+TOKENS
+  ↓
+What did we consume?
+
+COST
+  ↓
+What did inference cost?
+
+EFFICIENCY
+  ↓
+What did one interaction cost?
+
+EFFECTIVENESS
+  ↓
+What did one successful outcome cost?
+
+BUSINESS ECONOMICS
+  ↓
+What might one successful outcome be worth?
+
+ECONOMIC VALUE
+  ↓
+How much recovered contribution
+do we get per dollar of inference?
+```
+
+That is the path from:
+
+> **token visibility**
+
+to:
+
+> **token accountability**
+
+---
+
+# Final Takeaway
+
+Token optimization alone asks:
+
+> Can we use fewer tokens?
+
+Token economics asks:
+
+> Can we create more valuable outcomes per inference dollar?
+
+The second question is the one the business ultimately cares about.
+
+The ladder therefore evolves from:
+
+```text
+Token Spend
+→ Token Cost
+→ Token Efficiency
+→ Token Effectiveness
+→ Business Economics
+→ Economic Value
+```
+
+The Contoso Coffee business case is one concrete application of that reusable framework.
+
+For the scenario-specific economics, assumptions, sensitivity analysis, and demo story, see:
+
+[`business_case_and_economics.md`](business_case_and_economics.md)

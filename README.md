@@ -1,23 +1,60 @@
-# Foundry Prompt Agent
+# Foundry Prompt Agent — From Agent Quality to Token Economics
 
-A small learning project that walks through the **Microsoft Foundry Prompt Agent lifecycle (ADLC)** using a simple *Contoso Coffee* assistant backed by **Azure AI Search**.
+A small learning project that walks through the **Microsoft Foundry Prompt Agent lifecycle (ADLC)** using a simple *Contoso Coffee* assistant backed by **Azure AI Search** — and then extends that lifecycle into **token economics**.
+
+The project starts with a familiar agent question:
+
+> **Does the agent work reliably?**
+
+and deliberately pushes one step further:
+
+> **Is the AI economically worth operating?**
+
+The tokenomics story is built around a realistic local-business scenario: a coffee shop may receive more menu-related calls and inquiries than staff can answer during peak periods. The baseline is not necessarily “replace a human worker.” It may be:
+
+```text
+Phone rings
+   ↓
+Staff is busy
+   ↓
+Nobody answers
+   ↓
+Customer gives up
+   ↓
+Revenue disappears
+```
+
+The project therefore treats the agent as a **demand-recovery system** and asks:
+
+> **How much otherwise-lost contribution can AI potentially recover per dollar of inference?**
+
+The core optimization goal is:
+
+> **Maximize economically valuable outcomes per dollar of AI inference while preserving quality — not simply minimize token consumption.**
+
+---
 
 ## Overview
 
-The agent answers questions about a coffee-shop menu (prices, descriptions, filtering, budget math, recommendations) and is expected to stay in scope and abstain when it lacks evidence.
+The Contoso Coffee agent answers questions about a coffee-shop menu: prices, descriptions, filtering, budget math, recommendations, abstention when information is unavailable, and scope adherence.
 
-The important mental split:
+The important architectural split is:
 
-- **The Prompt Agent itself lives in Microsoft Foundry.** Its instructions, model, and Azure AI Search tool are configured and persisted there — not in this repo.
-- **This repository is everything *around* that agent:** a thin Python client to invoke it, an evaluation harness, curated datasets, custom evaluators, and a CI regression workflow.
+- **The Prompt Agent itself lives in Microsoft Foundry.** Its instructions, model, and Azure AI Search tool are configured and persisted there.
+- **This repository owns everything around the agent:** invocation, evaluation, regression datasets, token measurement, business-economics modeling, CI quality gates, reports, and an interactive tokenomics dashboard.
 
-The goal is to demonstrate one core lesson:
+The project demonstrates two related ideas:
 
-> Trust in an agent comes from repeatable evaluation evidence, not from a few successful playground tests.
+1. **Agent trust comes from repeatable evaluation evidence**, not a few successful playground conversations.
+2. **Token cost only becomes meaningful when connected to quality and business outcomes.**
+
+---
 
 ## Architecture / mental model
 
 ```text
+                     AGENT QUALITY
+
 User / Evaluation Dataset
          ↓
   Foundry Prompt Agent
@@ -32,10 +69,33 @@ Python evaluation harness
          ↓
    Foundry evaluators
          ↓
-CI quality gate / monitoring
+Measured quality + token usage
+         ↓
+CI quality gate
+
+
+                    TOKEN ECONOMICS
+
+Measured quality + token cost
+         +
+Business assumptions
+         ↓
+business_economics.py
+         ↓
+Recovered demand
+         ↓
+Recovered contribution
+         ↓
+AI Value Multiple
+         ↓
+Report / Streamlit dashboard
 ```
 
-The Python side invokes the persisted agent and drives evaluation. Foundry owns the agent runtime, the judge model, the evaluator catalog, and result persistence.
+The Python side invokes the persisted agent and drives evaluation. Foundry owns the managed agent runtime, model/tool execution, evaluator catalog, and evaluation-result persistence.
+
+The repository then adds the application-specific economics layer.
+
+---
 
 ## Project structure
 
@@ -43,24 +103,35 @@ Only the parts that matter for understanding the flow:
 
 | Path | Purpose |
 | --- | --- |
-| [src/foundry_prompt_agent/](src/foundry_prompt_agent/) | Thin client. `agent.py` invokes the persisted Foundry Prompt Agent via `AIProjectClient`. |
-| [src/foundry_prompt_agent/tokenomics.py](src/foundry_prompt_agent/tokenomics.py) | Pure token-to-value math: pricing, cost, efficiency, and effectiveness. No Azure/Foundry dependency. |
-| [evaluation.py](evaluation.py) | Evaluation harness: generates fresh responses, runs cloud evaluation in Foundry, enforces the quality gate, and prints the token-to-value ladder. |
-| [evals/](evals/) | Curated JSONL evaluation datasets and generated result/trace files. |
-| [data/contoso.json](data/contoso.json) | The Contoso Coffee menu that backs the Azure AI Search index. |
-| [docs/create_prompt_agent.md](docs/create_prompt_agent.md) | One-time setup guide for creating the Foundry Prompt Agent and its Azure AI Search index. |
-| [docs/](docs/) | Conceptual notes on evaluation, monitoring, and automation. |
-| [.github/workflows/](.github/workflows/) | CI regression evaluation workflows. |
+| [src/foundry_prompt_agent/](src/foundry_prompt_agent/) | Python package around the persisted Foundry agent. |
+| [src/foundry_prompt_agent/agent.py](src/foundry_prompt_agent/agent.py) | Invokes the existing Prompt Agent and captures token usage returned by the Responses API. |
+| [src/foundry_prompt_agent/tokenomics.py](src/foundry_prompt_agent/tokenomics.py) | Generic token-cost, efficiency, and effectiveness calculations. |
+| [src/foundry_prompt_agent/business_economics.py](src/foundry_prompt_agent/business_economics.py) | Coffee-shop demand-recovery economics: recovered orders, contribution, AI Value Multiple, and break-even conversion. |
+| [evaluation.py](evaluation.py) | Main evaluation harness: runs the agent, measures token usage, runs Foundry evaluators, enforces quality gates, and persists run history. |
+| [economics/business_assumptions.yaml](economics/business_assumptions.yaml) | Explicit business assumptions used by the economics model. |
+| [evals/](evals/) | Curated regression datasets, generated responses, and tokenomics run history. |
+| [evals/tokenomics_history.jsonl](evals/tokenomics_history.jsonl) | Append-only experiment ledger containing measured AI metrics, assumptions, and modeled economics. |
+| [generate_economics_report.py](generate_economics_report.py) | Generates a Markdown economics report from the latest measured run without calling the model again. |
+| [dashboard.py](dashboard.py) | Interactive Streamlit dashboard for scenario analysis and run/agent comparison. |
+| [plot_tokenomics.py](plot_tokenomics.py) | Plots tokenomics trends across historical evaluation runs. |
+| [data/contoso.json](data/contoso.json) | Contoso Coffee menu that backs the Azure AI Search index. |
+| [docs/](docs/) | Setup, evaluation, monitoring, automation, tokenomics framework, and business-case documentation. |
+| [.github/workflows/](.github/workflows/) | CI regression workflows. |
+
+---
 
 ## Prerequisites
 
 - **Python `>=3.12`** (see [pyproject.toml](pyproject.toml)).
 - **[uv](https://docs.astral.sh/uv/)** for dependency management and running scripts.
-- **Azure CLI** (`az`) — the client authenticates with `AzureCliCredential`.
+- **Azure CLI** (`az`) — the local client authenticates with `AzureCliCredential`.
 - Access to the appropriate **Microsoft Foundry project**.
-- An **existing Prompt Agent** and **Azure AI Search** configuration in that Foundry project. The custom evaluators (`contoso_behavior_rubric`, `contoso_scope_adherence`) must also be registered in Foundry.
+- An existing **Prompt Agent** and **Azure AI Search** configuration in that Foundry project.
+- The custom evaluators `contoso_behavior_rubric` and `contoso_scope_adherence` registered in Foundry.
 
-If you are starting from scratch, follow [docs/create_prompt_agent.md](docs/create_prompt_agent.md) first. It walks through building the `contoso-coffee-index` from [data/contoso.json](data/contoso.json), creating the Prompt Agent with its instructions, and attaching the index as a tool.
+If starting from scratch, follow [docs/create_prompt_agent.md](docs/create_prompt_agent.md) first.
+
+---
 
 ## Setup with uv
 
@@ -79,18 +150,39 @@ az login
 cp .env.example .env
 ```
 
-The agent name and version below come from the agent you create in [docs/create_prompt_agent.md](docs/create_prompt_agent.md).
-
-Populate `.env` with your Foundry project details (see [.env.example](.env.example)):
+Populate `.env` with your Foundry project details:
 
 ```text
-FOUNDRY_PROJECT_ENDPOINT=       # your Foundry project endpoint
+FOUNDRY_PROJECT_ENDPOINT=
 FOUNDRY_AGENT_NAME=foundry-prompt-agent
-FOUNDRY_AGENT_VERSION=          # the persisted agent version
-FOUNDRY_JUDGE_MODEL=gpt-5       # judge model for LLM-based evaluators
+FOUNDRY_AGENT_VERSION=
+FOUNDRY_JUDGE_MODEL=gpt-5
+
 BEHAVIOR_PASS_RATE_THRESHOLD=0.90
 SCOPE_PASS_RATE_THRESHOLD=1.00
 ```
+
+Business assumptions are intentionally kept separate from runtime configuration in:
+
+```text
+economics/business_assumptions.yaml
+```
+
+Example:
+
+```yaml
+business:
+  missed_contacts_per_day: 100
+  ai_eligible_rate: 0.60
+  conversion_rate: 0.30
+  average_order_value_usd: 10.00
+  contribution_margin: 0.35
+  days_per_month: 30
+```
+
+These are **scenario assumptions**, not claims about a real coffee shop.
+
+---
 
 ## Running the agent
 
@@ -100,7 +192,9 @@ Invoke the persisted Foundry Prompt Agent directly:
 uv run src/foundry_prompt_agent/agent.py
 ```
 
-This sends a sample query through `ask_agent()` and prints the agent's response, confirming your Foundry and Azure CLI configuration works end to end.
+This confirms the Foundry endpoint, agent reference, Azure authentication, and response path work end to end.
+
+---
 
 ## Running evaluations
 
@@ -108,85 +202,423 @@ This sends a sample query through `ask_agent()` and prints the agent's response,
 uv run evaluation.py
 ```
 
-[evaluation.py](evaluation.py) performs the full loop:
+[evaluation.py](evaluation.py) performs the core measurement loop:
 
-1. **Loads a curated JSONL dataset** from `evals/` (each row has `name`, `category`, `query`, `ground_truth`).
-2. **Generates fresh agent responses** by calling the live Foundry agent for every case and writing a results JSONL.
-3. **Runs cloud evaluation in Foundry** — uploads the results dataset and creates an evaluation with two **custom evaluators**:
-   - `contoso_behavior_rubric` — semantic behavior/grounding/abstention rubric (judged by `FOUNDRY_JUDGE_MODEL`).
-   - `contoso_scope_adherence` — checks the agent stays within Contoso Coffee scope.
-4. **Enforces quality thresholds.** The behavior rubric must meet `BEHAVIOR_PASS_RATE_THRESHOLD` (default 90%) and scope adherence must meet `SCOPE_PASS_RATE_THRESHOLD` (default 100%).
-5. **Exits non-zero** (`sys.exit(1)`) if the run did not complete or any threshold fails — this is what turns a plain evaluation into a regression gate. A link to the Foundry report is printed for diagnosis.
+1. Loads the curated regression dataset from `evals/`.
+2. Invokes the persisted agent for every case.
+3. Captures actual token usage and computes token cost.
+4. Uploads generated responses to Foundry.
+5. Runs the custom Foundry evaluators:
+   - `contoso_behavior_rubric`
+   - `contoso_scope_adherence`
+6. Calculates:
+   - tokens per interaction,
+   - cost per interaction,
+   - behavior success rate,
+   - tokens per successful resolution,
+   - cost per successful resolution.
+7. Combines measured AI performance with the configured business assumptions.
+8. Calculates modeled demand recovery and token economics.
+9. Appends the run to `evals/tokenomics_history.jsonl`.
+10. Enforces the CI quality thresholds and exits non-zero on regression.
 
-See [docs/evaluation.md](docs/evaluation.md) for the reasoning behind dataset design and evaluator selection.
+A Foundry report URL is printed for diagnosis.
+
+See [docs/evaluation.md](docs/evaluation.md) for the evaluation design and evaluator rationale.
+
+---
 
 ## Token-to-value ladder
 
-A highlight of this project is that the harness measures not just *whether the agent works* but *whether the spend is worth it*. After each run, `evaluation.py` prints a bottom-up tokenomics ladder built from the token usage captured on every agent call:
+The project deliberately moves from raw model usage to economic accountability:
 
 ```text
-Token Spend          → how many tokens did we use?
-Token Cost           → how much did those tokens cost?
-Token Efficiency     → tokens and cost per task
-Token Effectiveness  → tokens and cost per *successful* task
-Token Economics      → business value created per dollar of token spend
-Token Margin         → value minus AI runtime, human review, and error/risk cost
+Token Spend
+    ↓
+How many tokens did we use?
+
+Token Cost
+    ↓
+What did those tokens cost?
+
+Token Efficiency
+    ↓
+What did one interaction cost?
+
+Token Effectiveness
+    ↓
+What did one successful resolution cost?
+
+Business Economics
+    ↓
+What might a successful interaction be worth?
+
+Economic Value
+    ↓
+How much recovered contribution
+do we create per dollar of AI inference?
 ```
 
-The economics rung multiplies successful tasks by an assumed `VALUE_PER_SUCCESS_USD` (a business assumption, set in `.env`) to produce a value-per-dollar ratio. The margin rung then subtracts real-world costs (human review, error/risk) to show whether the value is actually profitable.
+The generic framework is documented in:
 
-Each completed run appends a compact ladder record to `evals/tokenomics_history.jsonl`, so prompt or model changes can be judged on the trend rather than a single snapshot.
+**[docs/token_to_value_ladder.md](docs/token_to_value_ladder.md)**
 
-The key insight this demonstrates:
+That document explains the reusable measurement ladder, why quality must be part of token economics, how the ladder maps to this repository, and why a cheaper agent is not automatically an economically better agent.
 
-> Foundry's monitoring dashboard already shows token spend and cost for production traffic. What it does **not** do is tie tokens to *task success* or *business value*. That link only exists because this repo owns the evaluation harness, so the higher rungs of the ladder are where the Python side earns its keep.
+---
 
-The pure math lives in [src/foundry_prompt_agent/tokenomics.py](src/foundry_prompt_agent/tokenomics.py). For the full framework, the per-step deep dive, and the design decisions behind each rung, see [docs/token_to_value_ladder.md](docs/token_to_value_ladder.md).
+## Business case and economics
 
-## CI/CD
+The Contoso Coffee application of the framework is documented separately in:
 
-Two workflows live under [.github/workflows/](.github/workflows/):
+**[docs/business_case_and_economics.md](docs/business_case_and_economics.md)**
 
-- **[agent-regression-eval.yml](.github/workflows/agent-regression-eval.yml)** — the primary gate. It runs *our own* `evaluation.py` so the project controls dependencies, datasets, evaluators, and failure behavior.
-- **[agent-builtin-eval.yml](.github/workflows/agent-builtin-eval.yml)** — an earlier experiment using the managed `microsoft/ai-agent-evals@v3-beta` action, kept for comparison.
+That document explains the business story:
 
-Both workflows:
+```text
+Missed customer demand
+        ↓
+AI-addressable interactions
+        ↓
+Measured agent quality
+        ↓
+Successfully served customers
+        ↓
+Expected conversion
+        ↓
+Recovered revenue
+        ↓
+Recovered contribution
+```
 
-- Authenticate to Azure with **OIDC / workload identity federation** — no long-lived client secret is stored in GitHub.
-- Reproduce the environment from **`uv.lock`** (`uv sync --locked`, `uv run --locked`).
-- Are wired to run on pull requests / dispatch so regressions can be caught before merge, with **Foundry evaluation results** available for diagnosis.
+The primary business metric is:
 
-The push triggers are currently commented out (run via **Run workflow** / `workflow_dispatch`). For the full CI reasoning, OIDC setup, and repository-variable list, see [docs/automation.md](docs/automation.md).
+```text
+AI Value Multiple
+=
+Recovered Contribution
+÷
+AI Inference Cost
+```
+
+The purpose is not to claim a precise production ROI from a pet-project dataset.
+
+Instead, the project clearly separates:
+
+| Measured | Assumed | Validate in a real pilot |
+| --- | --- | --- |
+| Token usage | Missed contacts/day | Actual missed demand |
+| AI inference cost | AI-eligible rate | Incremental orders |
+| Behavior success rate | Conversion rate | Actual conversion lift |
+| Cost per successful resolution | Average order value | Actual AOV |
+| Quality/scope metrics | Contribution margin | Actual contribution lift |
+
+This keeps the economics transparent and testable.
+
+---
+
+## Generate the economics report
+
+Once at least one evaluation run has been recorded:
+
+```bash
+uv run generate_economics_report.py
+```
+
+This does **not** rerun the agent.
+
+It reads the latest measured run from:
+
+```text
+evals/tokenomics_history.jsonl
+```
+
+and combines that measurement with business scenarios locally.
+
+The generated report summarizes:
+
+- measured AI performance,
+- business assumptions,
+- demand-recovery funnel,
+- recovered revenue and contribution,
+- AI inference cost,
+- AI Value Multiple,
+- break-even conversion,
+- conversion sensitivity.
+
+The important separation is:
+
+```text
+evaluation.py
+=
+measure the AI
+
+generate_economics_report.py
+=
+analyze the economics of that measurement
+```
+
+Business sensitivity analysis therefore costs no additional inference tokens.
+
+---
+
+## Interactive tokenomics dashboard
+
+For interactive scenario exploration:
+
+```bash
+uv run streamlit run dashboard.py
+```
+
+The Streamlit dashboard reads the same measured history and performs all scenario modeling locally.
+
+### Business Economics tab
+
+The dashboard keeps measured AI metrics fixed:
+
+```text
+Behavior success rate
+Tokens / interaction
+Measured cost / interaction
+Cost / successful resolution
+```
+
+and allows interactive changes to:
+
+```text
+Missed contacts/day
+AI-eligible rate
+Conversion rate
+Average order value
+Contribution margin
+AI cost stress multiplier
+```
+
+The dashboard updates:
+
+- AI-addressable interactions,
+- successfully served interactions,
+- estimated recovered orders,
+- recovered revenue,
+- recovered contribution,
+- monthly AI inference cost,
+- AI Value Multiple,
+- break-even conversion rate.
+
+It also includes:
+
+- **Conservative / Base / Optimistic presets**,
+- a contribution-vs-AI-cost visualization,
+- conversion-sensitivity analysis,
+- AI cost stress testing.
+
+The cost-stress control deliberately preserves the measured inference cost and models scenarios such as `5x`, `10x`, or `20x` production cost rather than overwriting the measurement.
+
+### Agent / Run Comparison tab
+
+Historical evaluation runs can be compared under the **same business assumptions**.
+
+The comparison includes:
+
+- tokens per interaction,
+- measured cost per interaction,
+- behavior quality,
+- cost per successful resolution,
+- AI Value Multiple,
+- break-even conversion.
+
+This demonstrates a core tokenomics lesson:
+
+> **The lowest-token or cheapest agent is not necessarily the economically best agent.**
+
+A more expensive configuration can be preferable if higher quality creates more valuable successful outcomes.
+
+---
+
+## Run history and visualization
+
+Every current evaluation run appends measured and modeled values to:
+
+```text
+evals/tokenomics_history.jsonl
+```
+
+Treat this file as an **experiment ledger**.
+
+Each run can preserve:
+
+```text
+Measured AI performance
++
+Business assumptions
++
+Modeled economics
+```
+
+This enables later comparisons to answer:
+
+> Did economics change because the agent changed, or because the business assumptions changed?
+
+Run-history visualizations can be regenerated with:
+
+```bash
+uv run plot_tokenomics.py
+```
+
+The most useful trend metrics are:
+
+- success rate,
+- tokens per interaction,
+- cost per interaction,
+- cost per successful resolution,
+- AI Value Multiple.
+
+---
+
+## CI/CD regression gate
+
+Workflows under [.github/workflows/](.github/workflows/) automate regression evaluation.
+
+The primary workflow runs the repository's own `evaluation.py`, giving the project control over:
+
+- dependency versions,
+- regression dataset,
+- agent version,
+- evaluator selection,
+- quality thresholds,
+- failure behavior.
+
+The workflow:
+
+```text
+Pull request / manual run
+        ↓
+GitHub Actions
+        ↓
+OIDC authentication to Azure
+        ↓
+uv sync --locked
+        ↓
+evaluation.py
+        ↓
+Foundry evaluation
+        ↓
+behavior + scope thresholds
+        ↓
+PASS / FAIL
+```
+
+GitHub authenticates through **OIDC workload identity federation**, so no long-lived Azure client secret is required.
+
+For the full CI reasoning, federated identity setup, scheduled evaluation, and quality-gate design, see:
+
+**[docs/automation.md](docs/automation.md)**
+
+---
 
 ## Learning journey / ADLC
 
-The repository walks through the Agent Development Lifecycle stages:
+The repository walks through the Agent Development Lifecycle:
 
 ```text
-Build     → Prompt Agent configured in Foundry
-Observe   → traces / agent behavior
-Evaluate  → curated datasets + built-in and custom evaluators
-Optimize  → Agent Optimizer (preview)
-Monitor   → continuous and scheduled evaluation
-Automate  → GitHub Actions regression gates
+Build
+  ↓
+Prompt Agent configured in Foundry
+
+Observe
+  ↓
+Traces and agent behavior
+
+Evaluate
+  ↓
+Curated datasets + custom evaluators
+
+Optimize
+  ↓
+Agent Optimizer
+
+Monitor
+  ↓
+Continuous / scheduled evaluation
+
+Automate
+  ↓
+GitHub Actions regression gates
+
+Measure Economics
+  ↓
+Tokens → quality → business value
 ```
 
-The recurring theme across every stage: **trust comes from repeatable evaluation evidence, not from a handful of good playground conversations.** Each meaningful change to the prompt, model, or search configuration is re-checked against the same benchmark.
+The recurring theme is:
+
+> **Trust comes from repeatable evaluation evidence, and value comes from measuring spend against outcomes rather than counting tokens in isolation.**
+
+---
 
 ## Documentation
 
 Conceptual notes under [docs/](docs/):
 
-- [docs/create_prompt_agent.md](docs/create_prompt_agent.md) — one-time setup: creating the Azure AI Search index from the menu data, creating the Prompt Agent in Foundry with its instructions, and attaching the index as a tool.
-- [docs/evaluation.md](docs/evaluation.md) — how evaluation datasets, evaluator families (deterministic, LLM-as-judge, custom rubric), baselines, and regression comparisons work; also covers cloud evaluation from Python and the Agent Optimizer.
-- [docs/monitoring.md](docs/monitoring.md) — operational vs. AI-quality health, traces, continuous vs. scheduled evaluation, alerts, and red-team monitoring.
-- [docs/automation.md](docs/automation.md) — scheduled regression, the CI/CD gate, GitHub Actions mental model, OIDC federated identity, and quality gates.
-- [docs/token_to_value_ladder.md](docs/token_to_value_ladder.md) — the token-to-value ladder: turning raw token usage into cost, efficiency, and effectiveness, with a per-step deep dive.
+- [docs/create_prompt_agent.md](docs/create_prompt_agent.md) — create the Azure AI Search index, Prompt Agent, instructions, and search tool.
+- [docs/evaluation.md](docs/evaluation.md) — curated datasets, evaluator design, cloud evaluation, baselines, custom evaluators, and Agent Optimizer.
+- [docs/monitoring.md](docs/monitoring.md) — operational vs. AI-quality health, traces, continuous/scheduled evaluation, and monitoring.
+- [docs/automation.md](docs/automation.md) — scheduled regression, GitHub Actions, OIDC federation, and CI quality gates.
+- **[docs/token_to_value_ladder.md](docs/token_to_value_ladder.md)** — the reusable tokenomics framework from token spend to economic value.
+- **[docs/business_case_and_economics.md](docs/business_case_and_economics.md)** — the Contoso Coffee demand-recovery business case, assumptions, AI Value Multiple, break-even analysis, sensitivity, and demo story.
+
+A useful reading order is:
+
+```text
+create_prompt_agent.md
+        ↓
+evaluation.md
+        ↓
+monitoring.md
+        ↓
+automation.md
+        ↓
+token_to_value_ladder.md
+        ↓
+business_case_and_economics.md
+```
+
+---
+
+## Key takeaway
+
+A traditional agent demo often stops at:
+
+```text
+Agent answered correctly.
+```
+
+This project pushes further:
+
+```text
+Did it answer correctly?
+        ↓
+What did that interaction cost?
+        ↓
+What did a successful interaction cost?
+        ↓
+What business outcome might it support?
+        ↓
+How much recovered contribution
+do we get per dollar of inference?
+```
+
+That is the project's main value proposition:
+
+> **Move from agent capability to agent accountability — technically through evaluation, and economically through token-to-value measurement.**
+
+---
 
 ## Future work
 
-Small, obvious next steps already implied by the repo and docs:
+Keep future extensions small and evidence-driven:
 
-- Enable the push/PR triggers in the workflows once the gate is trusted.
-- Grow the regression dataset from production traces (see [docs/monitoring.md](docs/monitoring.md)).
-- Explore the **Agent Optimizer** loop described in [docs/evaluation.md](docs/evaluation.md).
+- Grow the regression dataset from real traces and failure cases.
+- Compare prompt/model/agent configurations using quality + economic metrics rather than token cost alone.
+- Add real business measurements if the scenario is ever piloted with an actual operator.
+- Extend the current inference-cost model into fully loaded economics only when review, operational, and failure/risk costs can be grounded in evidence.
