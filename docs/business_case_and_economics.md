@@ -60,18 +60,6 @@ Coffee shops receive repetitive questions such as:
 
 During peak periods, some inquiries may go unanswered.
 
-```text
-Customer demand
-      ↓
-No response
-      ↓
-Abandoned interaction
-      ↓
-Potential order lost
-      ↓
-$0 realized contribution
-```
-
 The business question becomes:
 
 > **How much otherwise-lost demand can AI safely recover, and how much contribution can that recovered demand create relative to AI inference cost?**
@@ -108,6 +96,8 @@ is enough to model economic value.
 
 ## 2. From Tokens to Business Outcomes
 
+Tokens are the atomic units of AI consumption; outcomes are the economic units of value.
+
 Token metrics alone stop too early:
 
 ```text
@@ -120,15 +110,15 @@ Inference cost
 The business cares about what those tokens produce:
 
 ```text
-TOKENS
+Tokens
    ↓
-AI COST
+AI Cost
    ↓
-SUCCESSFUL INTERACTION
+Successful Interaction
    ↓
-RECOVERED ORDER OPPORTUNITY
+Recovered Order Opportunity
    ↓
-RECOVERED CONTRIBUTION
+Recovered Contribution
 ```
 
 So the better question is not:
@@ -147,20 +137,20 @@ The reusable measurement framework behind this progression is documented in [`to
 
 The model deliberately separates **measured AI performance** from **business assumptions**.
 
-### Measured by the system
-
-- token usage,
-- inference cost,
-- behavior success rate,
-- cost per successful resolution.
-
-### Assumed for the business scenario
+### Business assumptions
 
 - missed contacts/day,
 - AI-eligible rate,
 - conversion rate,
 - average order value,
 - contribution margin.
+
+### Measured by the system
+
+- token usage,
+- inference cost,
+- behavior success rate,
+- cost per successful resolution.
 
 These combine as:
 
