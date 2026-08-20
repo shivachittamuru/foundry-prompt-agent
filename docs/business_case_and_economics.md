@@ -80,17 +80,7 @@ Response
 
 The current agent supports item/price lookup, filtering, budget math, semantic recommendations, abstention, hallucination resistance, and scope adherence.
 
-A real order-processing system is intentionally out of scope. For this tokenomics model:
-
-```text
-Successful interaction
-      ↓
-Probability customer proceeds to purchase
-      ↓
-Estimated recovered order
-```
-
-is enough to model economic value.
+A real order-processing system is intentionally out of scope. For this tokenomics model, estimated recovered orders from agent interactions is enough to model economic value as orders generate revenue.
 
 ---
 
@@ -137,7 +127,7 @@ The reusable measurement framework behind this progression is documented in [`to
 
 The model deliberately separates **measured AI performance** from **business assumptions**.
 
-### Business assumptions
+### Business assumptions or inputs
 
 - missed contacts/day,
 - AI-eligible rate,
